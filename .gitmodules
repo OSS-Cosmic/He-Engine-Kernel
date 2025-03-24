@@ -1,0 +1,15 @@
+[submodule "extern/stb"]
+	path = extern/stb
+	url = https://github.com/nothings/stb.git
+[submodule "extern/zlib"]
+	path = extern/zlib
+	url = https://github.com/TeamForbiddenLLC/zlib.git
+[submodule "extern/Vulkan-Headers"]
+	path = extern/Vulkan-Headers
+	url = https://github.com/KhronosGroup/Vulkan-Headers.git
+[submodule "extern/volk"]
+	path = extern/volk
+	url = https://github.com/TeamForbiddenLLC/volk.git
+[submodule "extern/utest"]
+	path = extern/utest
+	url = https://github.com/sheredom/utest.h.git
