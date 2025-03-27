@@ -40,49 +40,54 @@
 #define Q_STRING_H_INCLUDED
 
 #include "he/core/types.h"
-
 #define STR_LLSTR_SIZE 21
 #define STR_LSTR_SIZE 16 
 
-struct HeStr {
-  size_t alloc;
-  size_t len;
+struct he_allocator;
+
+struct he_str {
+  uint32_t alloc;
+  uint32_t len;
   char* buf;
 };
 
-struct HeStrSpan {
+struct he_str_span {
   char * buf;
   size_t len;
 }; 
 
+// span utitilities
+size_t copy_span_to_span(struct he_str_span src, struct he_str_span dest);
 
-static inline struct HeStrSpan HeCToStrRef(const char* c) { 
-  struct HeStrSpan result;
+static inline struct he_str_span c_to_str_span(const char* c) { 
+  struct he_str_span result;
   result.buf = (char*)c;
   result.len = c ? (size_t)strlen(c) : 0;
   return result; 
 }
 
-static inline struct HeStrSpan HeToStrRef(struct HeStr str) { 
-  struct HeStrSpan result;
+static inline struct he_str_span str_to_str_span(struct he_str str) { 
+  struct he_str_span result;
   result.buf = (char*)str.buf;
   result.len = str.len;
   return result; 
 }
 
-static inline struct HeStrSpan HeSubStrSpan(struct HeStrSpan slice, size_t a, size_t b) {
+int double_to_short_str(struct he_str_span str, double d, int precision);
+
+static inline struct he_str_span sub_str_span(struct he_str_span slice, size_t a, size_t b) {
     assert((b - a) <= slice.len);
-    struct HeStrSpan result;
+    struct he_str_span result;
     result.buf = slice.buf + a;
     result.len = b - a;
     return result;
 }
 
-static inline size_t qStrAvailLen(struct HeStr str) { return str.alloc - str.len;}
-static inline struct HeStrSpan qStrAvailSpan(struct HeStr str) { 
-  struct HeStrSpan result;
+static inline size_t str_avil_len(struct he_str str) { return str.alloc - str.len;}
+static inline struct he_str_span str_avil_span(struct he_str str) { 
+  struct he_str_span result;
   result.buf = str.buf + str.len;
-  result.len = qStrAvailLen(str);
+  result.len = str_avil_len(str);
   return result;
 }
 
@@ -93,14 +98,14 @@ extern "C" {
 /**
  * Creates a string from a slice 
  **/
-void qStrFree(struct HeStr* str);
-void qStrUpper(struct HeStrSpan slice);
-void qStrLower(struct HeStrSpan slice);
+void str_free(struct he_allocator* alloc,struct he_str* str);
+void str_upper(struct he_str_span slice);
+void str_lower(struct he_str_span slice);
 #define qStrEmpty(b) ((b).buf == NULL || (b).len == 0)
 
-struct HeStrSpan qStrTrim(struct HeStrSpan slice);
-struct HeStrSpan qStrRTrim(struct HeStrSpan  slice);
-struct HeStrSpan qStrLTrim(struct HeStrSpan  slice);
+struct he_str_span str_trim(struct he_str_span slice);
+struct he_str_span str_r_trim(struct he_str_span  slice);
+struct he_str_span str_l_trim(struct he_str_span  slice);
 
 /* Enlarge the free space at the end of the Str string so that the caller
  * is sure that after calling this function can overwrite up to addlen
@@ -108,7 +113,7 @@ struct HeStrSpan qStrLTrim(struct HeStrSpan  slice);
  *
  * Note: this does not change the *length* of the Str string as len 
  * but only the free buffer space we have. */
-bool qStrMakeRoomFor(struct HeStr* str, size_t addlen);
+bool str_make_room_for(struct he_allocator* alloc,struct he_str* str, size_t addlen);
 /* 
  * set the length of the buffer to the length specified. this
  * will also trigger a realloction if the length is greater then the size
@@ -117,14 +122,14 @@ bool qStrMakeRoomFor(struct HeStr* str, size_t addlen);
  * Note: this does not set the null terminator for the string.
  * this will corrupt slices that are referencing a slice out of this buffer.
  **/
-bool qStrSetLen(struct HeStr* str, size_t len);
+bool str_set_len(struct he_str* str, size_t len);
 /**
  * set the amount of memory reserved by the Str. will only ever increase
  * the size of the string 
  * 
  * A reserved string can be assigned with bstrAssign
  **/
-bool qStrSetResv(struct HeStr* str, size_t reserveLen); 
+bool str_set_resv(struct he_allocator* alloc,struct he_str* str, size_t reserveLen); 
 
 /** 
  * Modify an Str string in-place to make it empty (zero length) set null terminator.
@@ -132,7 +137,7 @@ bool qStrSetResv(struct HeStr* str, size_t reserveLen);
  * so that next append operations will not require allocations up to the
  * number of bytes previously available. 
  **/
-bool qStrClear(struct HeStr* str);
+bool str_clear(struct he_str* str);
 
 /**
  * takes a Str and duplicates the underlying buffer.
@@ -141,12 +146,12 @@ bool qStrClear(struct HeStr* str);
  *
  * if the buffer fails to allocate then BSTR_IS_EMPTY(b) will be true
  **/
-struct HeStr qStrDup(const struct HeStr* str);
-bool qStrAppendSlice(struct HeStr* str, const struct HeStrSpan slice);
-bool qStrAppendChar(struct HeStr* str, char b);
-bool qStrInsertChar(struct HeStr* str, size_t i, char b);
-bool qStrInsertSlice(struct HeStr* str, size_t i, const struct HeStrSpan slice);
-bool qStrAssign(struct HeStr* str, struct HeStrSpan slice);
+struct he_str str_dup(struct he_allocator* allocator, const struct he_str* str);
+bool str_append_slice(struct he_allocator* alloc,struct he_str* str, const struct he_str_span slice);
+bool str_append_char(struct he_allocator* alloc,struct he_str* str, char b);
+bool str_insert_char(struct he_allocator* alloc,struct he_str* str, size_t i, char b);
+bool str_insert_slice(struct he_allocator* alloc,struct he_str* str, size_t i, const struct he_str_span slice);
+bool str_assign(struct he_allocator* alloc,struct he_str* str, struct he_str_span slice);
 /**
  * resizes the allocation of the Str will truncate if the allocation is less then the size 
  *
@@ -154,12 +159,12 @@ bool qStrAssign(struct HeStr* str, struct HeStrSpan slice);
  *
  * If the buffer fails to reallocate then false is returned
  **/
-bool qStrResize(struct HeStr* str, size_t len);
+bool str_resize(struct he_str* str, size_t len);
 
 
-struct qStrSplitIterable {
-  const struct HeStrSpan buffer; // the buffer to iterrate over
-  const struct HeStrSpan delim; // delim to split across 
+struct str_split_iterable {
+  const struct he_str_span buffer; // the buffer to iterrate over
+  const struct he_str_span delim; // delim to split across 
   size_t cursor; // the current position in the buffer
 };
 //#define bstr_iter_has_more(it) (it.cursor < it.buffer.len)
@@ -182,7 +187,7 @@ struct qStrSplitIterable {
  * }
  *
  **/
-struct HeStrSpan qStrSplitIter(struct qStrSplitIterable*);
+struct he_str_span str_split_iter(struct str_split_iterable*);
 
 /** 
  * splits a string using an iterator and returns a slice. a valid slice means there are 
@@ -204,7 +209,7 @@ struct HeStrSpan qStrSplitIter(struct qStrSplitIterable*);
  * }
  *
  **/
-struct HeStrSpan qStrSplitRevIter(struct qStrSplitIterable*);
+struct he_str_span str_split_rev_iter(struct str_split_iterable*);
 
 /* Set the Str string length to the length as obtained with strlen(), so
  * considering as content only up to the first null term character.
@@ -223,12 +228,12 @@ struct HeStrSpan qStrSplitRevIter(struct qStrSplitIterable*);
  * the output will be "6" as the string was modified but the logical length
  * remains 6 bytes. 
  ** */
-bool qStrUpdateLen(struct HeStr* str);
+bool str_update_len(struct he_str* str);
 /**
  * By default, the Str string is not null terminated. This function will set the null terminator
  * and ensure that enough space is reserved for the null terminator.
  */
-void qStrSetNullTerm(struct HeStr* str);
+void str_set_null_term(struct he_allocator* alloc,struct he_str* str);
 
 /* Append to the Str string 's' a string obtained using printf-alike format
  * specifier.
@@ -243,11 +248,11 @@ void qStrSetNullTerm(struct HeStr* str);
  *
  * if valid true else false
  */
-bool qstrcatprintf(struct HeStr* s, const char *fmt, ...); 
-bool qstrcatvprintf(struct HeStr* str, const char* fmt, va_list ap);
+bool str_cat_printf(struct he_allocator* alloc,struct he_str* s, const char *fmt, ...); 
+bool str_cat_vprintf(struct he_allocator* alloc,struct he_str* str, const char* fmt, va_list ap);
 
-int qstrsscanf(struct HeStrSpan slice, const char* fmt, ...);
-int qstrvsscanf(struct HeStrSpan slice, const char* fmt, va_list ap);
+int str_sscanf(struct he_str_span slice, const char* fmt, ...);
+int str_vsscanf(struct he_str_span slice, const char* fmt, va_list ap);
 
 /* This function is similar to tfcatprintf, but much faster as it does
  * not rely on sprintf() family functions implemented by the libc that
@@ -268,7 +273,7 @@ int qstrvsscanf(struct HeStrSpan slice, const char* fmt, va_list ap);
  * %U - 64 bit unsigned integer (unsigned long long, uint64_t)
  * %% - Verbatim "%" character.
  */
-bool qstrcatfmt(struct HeStr*, char const *fmt, ...);
+bool str_cat_fmt(struct he_str*, char const *fmt, ...);
 
 /*
  * join an array of slices and cat them to bstr. faster since the lengths are known ahead of time.
@@ -276,11 +281,11 @@ bool qstrcatfmt(struct HeStr*, char const *fmt, ...);
  *
  * this modifies Str so slices that reference this Str can become invalid.
  **/
-bool qstrcatjoin(struct HeStr*, struct HeStrSpan* slices, size_t numSlices, struct HeStrSpan sep);
+bool str_cat_join(struct he_str*, struct he_str_span* slices, size_t numSlices, struct he_str_span sep);
 /*
  * join an array of strings and cat them to Str 
  **/
-bool qstrcatjoinCStr(struct HeStr*, const char** argv, size_t argc, struct HeStrSpan sep);
+bool str_cat_join_c(struct he_str*, const char** argv, size_t argc, struct he_str_span sep);
 
 /**
  * this should fit safetly within BSTR_LLSTR_SIZE. 
@@ -289,8 +294,9 @@ bool qstrcatjoinCStr(struct HeStr*, const char** argv, size_t argc, struct HeStr
  * value is unable to be written or the length of the slice is greater
  *
  **/
-int qstrfmtll(struct HeStrSpan slice, long long value); 
-int qstrfmtull(struct HeStrSpan slice, unsigned long long value); 
+int str_fmt_ll(struct he_str_span slice, long long value); 
+int str_fmt_ull(struct he_str_span slice, unsigned long long value); 
+int str_fmt_ull_comma_seperated(struct he_str_span slice, unsigned long long value); 
 
 /*  
  * Parse a string into a 64-bit integer.
@@ -301,11 +307,11 @@ int qstrfmtull(struct HeStrSpan slice, unsigned long long value);
  *   * if the string starts with 0o, the base will be 8
  *   * otherwise the base will be 10
  */
-bool qStrReadll(struct HeStrSpan, long long* result);
-bool qStrReadull(struct HeStrSpan, unsigned long long* result);
+bool str_read_ll(struct he_str_span, long long* result);
+bool str_read_ull(struct he_str_span, unsigned long long* result);
 
-bool qStrReadFloat(struct HeStrSpan, float* result);
-bool qStrReadDouble(struct HeStrSpan, double* result);
+bool str_read_float(struct he_str_span, float* result);
+bool str_read_double(struct he_str_span, double* result);
 /* Scan/search functions */
 /*  
  *  Compare two strings without differentiating between case. The return
@@ -314,38 +320,38 @@ bool qStrReadDouble(struct HeStrSpan, double* result);
  *  returned indicating that the strings are equal. If the lengths are
  *  different, if the first slice is longer 1 else -1. 
  */
-int qStrCaselessCompare (const struct HeStrSpan b0, const struct HeStrSpan b1);
+int qStrCaselessCompare (const struct he_str_span b0, const struct he_str_span b1);
 /*
  *  The return value is the difference of the values of the characters where the
  *  two strings first differ after lower case transformation, otherwise 0 is
  *  returned indicating that the strings are equal. If the lengths are
  *  different, if the first slice is longer 1 else -1.
  */
-int qStrCompare  (const struct HeStrSpan b0, const struct HeStrSpan b1);
+int qStrCompare  (const struct he_str_span b0, const struct he_str_span b1);
 /**
 *  Test if two strings are equal ignores case true else false.  
 **/
-bool qStrCaselessEqual (const struct HeStrSpan b0, const struct HeStrSpan b1);
+bool str_casless_equal (const struct he_str_span b0, const struct he_str_span b1);
 /**
 *  Test if two strings are equal return true else false.  
 **/
-bool qStrEqual (const struct HeStrSpan b0, const struct HeStrSpan b1);
+bool str_equal (const struct he_str_span b0, const struct he_str_span b1);
 
-int qStrIndexOfOffset(const struct HeStrSpan haystack, size_t offset, const struct HeStrSpan needle);
-int qStrIndexOf(const struct HeStrSpan haystack, const struct HeStrSpan needle);
-int qStrLastIndexOfOffset(const struct HeStrSpan str, size_t offset, const struct HeStrSpan needle);
-int qStrLastIndexOf(const struct HeStrSpan str, const struct HeStrSpan needle);
+int str_index_of_offset(const struct he_str_span haystack, size_t offset, const struct he_str_span needle);
+int str_index_of(const struct he_str_span haystack, const struct he_str_span needle);
+int str_last_index_of_offset(const struct he_str_span str, size_t offset, const struct he_str_span needle);
+int str_last_index_of(const struct he_str_span str, const struct he_str_span needle);
 
-int qStrIndexOfCaselessOffset(const struct HeStrSpan haystack, size_t offset, const struct HeStrSpan needle);
-int qStrIndexOfCaseless(const struct HeStrSpan haystack, const struct HeStrSpan needle);
-int qStrLastIndexOfCaseless(const struct HeStrSpan haystack, const struct HeStrSpan needle);
-int qStrLastIndexOfCaselessOffset(const struct HeStrSpan haystack, size_t offset, const struct HeStrSpan needle);
+int str_index_of_caseless_offset(const struct he_str_span haystack, size_t offset, const struct he_str_span needle);
+int str_index_of_caseless(const struct he_str_span haystack, const struct he_str_span needle);
+int str_last_index_of_caseless(const struct he_str_span haystack, const struct he_str_span needle);
+int str_last_index_of_caseless_offset(const struct he_str_span haystack, size_t offset, const struct he_str_span needle);
 
-int qStrIndexOfAny(const struct HeStrSpan haystack, const struct HeStrSpan characters);
-int qStrLastIndexOfAny(const struct HeStrSpan haystack, const struct HeStrSpan characters);
+int str_index_of_any(const struct he_str_span haystack, const struct he_str_span characters);
+int str_last_index_of_any(const struct he_str_span haystack, const struct he_str_span characters);
 
-int qPrettyPrintBytes(struct HeStrSpan slice, size_t numBytes);
-int qPrettyPrintDuration(struct HeStrSpan slice,double nanoseconds);
+int pretty_print_bytes(struct he_str_span slice, size_t numBytes);
+int pretty_print_duration(struct he_str_span slice,double nanoseconds);
 
 #ifdef __cplusplus
 }

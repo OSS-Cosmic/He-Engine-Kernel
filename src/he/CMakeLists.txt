@@ -6,6 +6,7 @@ file (GLOB HE_SOURCE
   "${HE_ROOT_PATH}/src/he/graphics/*.cpp"
 )
 add_library(He_Core STATIC ${HE_SOURCE})
+target_link_libraries(He_Core PRIVATE stb)
 target_include_directories(He_Core PUBLIC
     	${HE_ROOT_PATH}/include
 )

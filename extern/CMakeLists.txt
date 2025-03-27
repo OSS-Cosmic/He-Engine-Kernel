@@ -35,3 +35,6 @@ add_subdirectory(volk)
 add_library(utest INTERFACE)
 target_include_directories(utest SYSTEM INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/utest")
 
+add_library(stb INTERFACE)
+target_include_directories(stb SYSTEM INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/stb")
+

@@ -75,6 +75,7 @@
   #define THREAD_LOCAL __thread
 #else
   #define HE_TARGET_UNIX
+  #define THREAD_LOCAL __thread
 #endif
 
 #define KB_TO_BYTE (1024)

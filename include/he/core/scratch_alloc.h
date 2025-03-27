@@ -6,7 +6,7 @@
 #include "he/core/alloc.h"
 
 struct HeScratchAllocator {
-	struct HeAllocator* alloctor;
+	struct he_allocator* alloctor;
 	struct HeAllocScratchBlock *freeBlocks;
 	struct HeAllocScratchBlock *current;
 	size_t pos;

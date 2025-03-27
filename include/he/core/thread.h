@@ -5,7 +5,7 @@ struct HeThread {
 
 };
 
-struct HeMutex {
+struct he_mutex {
 #ifdef HE_TARGET_WINDOWS 
     CRITICAL_SECTION handle;
 #else
@@ -15,16 +15,16 @@ struct HeMutex {
 
 };
    
-struct HeMutexDesc {
+struct he_mutex_desc {
   uint32_t spinCount;
 };
-static struct HeMutexDesc DefaultHeMutexDesc = {
+static struct he_mutex_desc DefaultHeMutexDesc = {
   .spinCount = HE_MUTEX_DEFAULT_SPIN_COUNT 
 };
-bool heInitMutex(struct HeMutexDesc *desc, struct HeMutex *pMutex);
-void heDestroyMutex(struct HeMutex* pMutex);
+bool he_init_mutex(struct he_mutex_desc *desc, struct he_mutex *pMutex);
+void he_destroy_mutex(struct he_mutex* pMutex);
 
-void heAcquireMutex(struct HeMutex* pMutex);
-bool heTryAcquireMutex(struct HeMutex* pMutex);
-void heReleaseMutex(struct HeMutex* pMutex);
+void he_acquire_mutex(struct he_mutex* pMutex);
+bool he_try_acquire_mutex(struct he_mutex* pMutex);
+void he_release_mutex(struct he_mutex* pMutex);
 

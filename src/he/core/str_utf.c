@@ -2,53 +2,53 @@
 #include "he/core/types.h"
 #include "he/core/str.h"
 
-struct HeStrSpan qStrUtf8CodePointIter(struct HeStrUTFIterable_s* iter){
+struct he_str_span qStrUtf8CodePointIter(struct HeStrUTFIterable_s* iter){
   assert(iter);
   const size_t startCursor = iter->cursor;
   if(startCursor >= iter->buffer.len)
-    return (struct HeStrSpan) {0};
+    return (struct he_str_span) {0};
   unsigned char c0 = iter->buffer.buf[iter->cursor];
   if (c0 < 0xC0 || c0 > 0xFD) {
     if(iter->cursor + 1 > iter->buffer.len)
-      return (struct HeStrSpan) {0};
+      return (struct he_str_span) {0};
     iter->cursor += 1;
-    return HeSubStrSpan(iter->buffer, startCursor, iter->cursor);
+    return sub_str_span(iter->buffer, startCursor, iter->cursor);
   } else if (c0 < 0xE0) {
     if(iter->cursor + 2 > iter->buffer.len)
-      return (struct HeStrSpan) {0};
+      return (struct he_str_span) {0};
     iter->cursor += 2;
-    return HeSubStrSpan(iter->buffer, startCursor, iter->cursor);
+    return sub_str_span(iter->buffer, startCursor, iter->cursor);
   } else if (c0 < 0xF0) {
     if(iter->cursor + 3 > iter->buffer.len)
-      return (struct HeStrSpan) {0};
+      return (struct he_str_span) {0};
     iter->cursor += 3;
-    return HeSubStrSpan(iter->buffer, startCursor, iter->cursor);
+    return sub_str_span(iter->buffer, startCursor, iter->cursor);
   } else if (c0 < 0xF8) {
     if(iter->cursor + 4 > iter->buffer.len)
-      return (struct HeStrSpan) {0};
+      return (struct he_str_span) {0};
     iter->cursor += 4;
-    return HeSubStrSpan(iter->buffer, startCursor, iter->cursor);
+    return sub_str_span(iter->buffer, startCursor, iter->cursor);
   }
   iter->cursor++;
   for (; iter->cursor < iter->buffer.len; iter->cursor++) {
     if ((iter->buffer.buf[iter->cursor] & 0xC0) != 0x80)
       break;
   }
-  return HeSubStrSpan(iter->buffer, startCursor, iter->cursor);
+  return sub_str_span(iter->buffer, startCursor, iter->cursor);
 }
 
-struct HeStrSpan bstrUtf16CodePointIter( struct HeStrUTFIterable_s *iter )
+struct he_str_span bstrUtf16CodePointIter( struct HeStrUTFIterable_s *iter )
 {
 	assert( iter );
 	const size_t startCursor = iter->cursor;
 	if( iter->cursor + 2 > iter->buffer.len )
-		return ( struct HeStrSpan ){ 0 };
+		return ( struct he_str_span ){ 0 };
 	const uint16_t w1 = ( (unsigned)iter->buffer.buf[1] << 8 ) | (unsigned)iter->buffer.buf[0];
 	if( w1 < 0xD800 || w1 > 0xDFFF )
-		return HeSubStrSpan( iter->buffer, startCursor, iter->cursor + 2 );
+		return sub_str_span( iter->buffer, startCursor, iter->cursor + 2 );
 	if( iter->cursor + 4 > iter->buffer.len )
-		return ( struct HeStrSpan  ){ 0 };
-	return HeSubStrSpan( iter->buffer, startCursor, iter->cursor + 4 );
+		return ( struct he_str_span  ){ 0 };
+	return sub_str_span( iter->buffer, startCursor, iter->cursor + 4 );
 }
 
 struct HeStrUtfResult_s HeStrUtf8NextCodePoint(struct HeStrUTFIterable_s* iter) {

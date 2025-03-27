@@ -6,7 +6,7 @@
 #include "he/core/unix_thread.h"
 #endif
 
-bool heInitMutex(struct HeMutexDesc *desc, struct HeMutex *pMutex) {
+bool he_init_mutex(struct he_mutex_desc *desc, struct he_mutex *pMutex) {
   pMutex->spinCount = desc->spinCount;
 #ifdef HE_TARGET_WINDOWS
   #error UNHANDLED
@@ -20,15 +20,17 @@ bool heInitMutex(struct HeMutexDesc *desc, struct HeMutex *pMutex) {
 #endif
   return true;
 }
-void heDestroyMutex(struct HeMutex* pMutex) {
+void he_destroy_mutex(struct he_mutex* pMutex) {
 #ifdef HE_TARGET_WINDOWS
   #error UNHANDLED
-#else
+#endif
+#ifdef HE_TARGET_UNIX
  pthread_mutex_destroy(&pMutex->handle);
 #endif
 }
 
-void heAcquireMutex(struct HeMutex *pMutex) {
+void he_acquire_mutex(struct he_mutex *pMutex) {
+#ifdef HE_TARGET_UNIX
   uint32_t count = 0;
 
   while (count < pMutex->spinCount &&
@@ -37,14 +39,21 @@ void heAcquireMutex(struct HeMutex *pMutex) {
 
   if (count == pMutex->spinCount) {
     int r = pthread_mutex_lock(&pMutex->handle);
-    ASSERT(r == 0 && "Mutex::Acquire failed to take the lock");
+    // ASSERT(r == 0 && "Mutex::Acquire failed to take the lock");
   }
+#endif
 }
-bool heTryAcquireMutex(struct HeMutex* pMutex) {
-
+bool he_try_acquire_mutex(struct he_mutex *pMutex) {
+#ifdef HE_TARGET_UNIX
+  return pthread_mutex_trylock(&pMutex->handle) == 0; 
+#endif
+return false;
 }
 
-void heReleaseMutex(struct HeMutex* pMutex) {
+void he_release_mutex(struct he_mutex* pMutex) {
+#ifdef HE_TARGET_UNIX
+pthread_mutex_unlock(&pMutex->handle);
+#endif
 
 }
 

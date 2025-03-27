@@ -36,6 +36,7 @@
 
 #include "he/core/str.h"
 #include "he/core/arch.h"
+#include "he/core/alloc.h"
 
 #define   upcase(c) (toupper ((unsigned char) c))
 #define downcase(c) (tolower ((unsigned char) c))
@@ -44,7 +45,7 @@
 #define CHAR_TABLE_LEN (1 << CHAR_BIT)
 #define QSTR_MAX_PREALLOC (1024*1024)
 
-static inline bool charToDigit(uint8_t c , uint8_t base, uint8_t* res) {
+static inline bool char_to_digit(uint8_t c , uint8_t base, uint8_t* res) {
   uint8_t val = 0;
   if(c >= '0' && c <= '9')
     val = c - '0';
@@ -58,9 +59,16 @@ static inline bool charToDigit(uint8_t c , uint8_t base, uint8_t* res) {
   return true;
 }
 
-typedef bool (*qStrCmpHandle)(struct HeStrSpan s0, struct HeStrSpan s1);
 
-void qStrUpper(struct HeStrSpan slice)
+size_t copy_span_to_span(struct he_str_span src, struct he_str_span dest) {
+    size_t min_cursor = HE_MIN(src.len, dest.len);
+    memcpy(dest.buf, src.buf, min_cursor);
+    return min_cursor;
+}
+
+typedef bool (*str_cmp_handle)(struct he_str_span s0, struct he_str_span s1);
+
+void str_upper(struct he_str_span slice)
 {
     for (size_t i = 0; i < slice.len; i++)
     {
@@ -68,7 +76,7 @@ void qStrUpper(struct HeStrSpan slice)
     }
 }
 
-void qStrLower(struct HeStrSpan slice)
+void str_lower(struct he_str_span slice)
 {
     for (size_t i = 0; i < slice.len; i++)
     {
@@ -76,42 +84,42 @@ void qStrLower(struct HeStrSpan slice)
     }
 }
 
-struct HeStrSpan qStrTrim(struct HeStrSpan slice) { return qStrLTrim(qStrRTrim(slice)); }
+struct he_str_span str_trim(struct he_str_span slice) { return str_l_trim(str_r_trim(slice)); }
 
-struct HeStrSpan qStrRTrim(struct HeStrSpan slice)
+struct he_str_span str_r_trim(struct he_str_span slice)
 {
     if (qStrEmpty(slice))
-        return (struct HeStrSpan){ slice.buf, 0 };
+        return (struct he_str_span){ slice.buf, 0 };
     for (size_t i = slice.len - 1;; i--)
     {
         if (!isspace(slice.buf[i]))
         {
-            return (struct HeStrSpan){ slice.buf, i + 1 };
+            return (struct he_str_span){ slice.buf, i + 1 };
         }
         if (i == 0)
             break;
     }
-    return (struct HeStrSpan){ slice.buf, 0 };
+    return (struct he_str_span){ slice.buf, 0 };
 }
 
-struct HeStrSpan qStrLTrim(struct HeStrSpan slice)
+struct he_str_span str_l_trim(struct he_str_span slice)
 {
     if (qStrEmpty(slice))
-        return (struct HeStrSpan){ slice.buf, 0 };
+        return (struct he_str_span){ slice.buf, 0 };
     for (size_t i = 0; i < slice.len; i++)
     {
         if (!isspace(slice.buf[i]))
         {
-            return (struct HeStrSpan){ slice.buf + i, slice.len - i };
+            return (struct he_str_span){ slice.buf + i, slice.len - i };
         }
     }
-    return (struct HeStrSpan){ slice.buf, 0 };
+    return (struct he_str_span){ slice.buf, 0 };
 }
 
-bool qStrAssign(struct HeStr* str, struct HeStrSpan slice)
+bool str_assign(struct he_str* str, struct he_str_span slice)
 {
     // set the length of the string alloc will
-    if (!qStrSetLen(str, slice.len))
+    if (!str_set_len(str, slice.len))
         return false;
     // slices can potentially overlap to the dest string
     //    trimming and assigning
@@ -120,7 +128,7 @@ bool qStrAssign(struct HeStr* str, struct HeStrSpan slice)
     return true;
 }
 
-bool qStrResize(struct HeStr* str, size_t len)
+bool str_resize(struct he_str* str, size_t len)
 {
     str->buf = (char*)realloc(str->buf, len + 1);
     if (str->buf == NULL)
@@ -133,7 +141,7 @@ bool qStrResize(struct HeStr* str, size_t len)
     return true;
 }
 
-bool qStrSetLen(struct HeStr* str, size_t len)
+bool str_set_len(struct he_str* str, size_t len)
 {
     if (len > str->alloc)
     {
@@ -146,7 +154,8 @@ bool qStrSetLen(struct HeStr* str, size_t len)
         {
             reqSize += QSTR_MAX_PREALLOC;
         }
-        str->buf = (char*)realloc(str->buf, reqSize);
+        str->buf = (char*)he_alloc_realloc(str->allocator, str->buf, reqSize);
+        //str->buf = (char*)realloc(str->buf, reqSize);
         if (str->buf == NULL)
             return false;
         str->alloc = reqSize;
@@ -156,7 +165,7 @@ bool qStrSetLen(struct HeStr* str, size_t len)
     return true;
 }
 
-bool qStrUpdateLen(struct HeStr* str)
+bool str_update_len(struct he_str* str)
 {
     size_t len = strlen(str->buf);
     str->len = len;
@@ -165,9 +174,9 @@ bool qStrUpdateLen(struct HeStr* str)
     return true;
 }
 
-bool qStrClear(struct HeStr* str)
+bool str_clear(struct he_str* str)
 {
-    if (!qStrSetLen(str, 0))
+    if (!str_set_len(str, 0))
         return false;
     if(str->buf != NULL) {
         str->buf[0] = '\0';
@@ -175,18 +184,18 @@ bool qStrClear(struct HeStr* str)
     return true;
 }
 
-void qStrFree( struct HeStr *str )
+void str_free( struct he_allocator* alloc,struct he_str *str )
 {
-	if( str->buf) {
-		free( str->buf );
-	}
-	str->len = 0;
-	str->alloc = 0;
-	str->buf = NULL;
+  if (str->buf) {
+    he_alloc_free(alloc, str->buf);
+  }
+  str->len = 0;
+  str->alloc = 0;
+  str->buf = NULL;
 }
 
-void qStrSetNullTerm(struct HeStr* str) {
-    qStrMakeRoomFor(str,  1);
+void str_set_null_term(struct he_allocator* alloc,struct he_str* str) {
+    str_make_room_for(alloc,str,  1);
     if(str->buf) {
         assert(str->len + 1 <= str->alloc); // we've overrun the buffer
         str->buf[str->len] = '\0';
@@ -194,25 +203,26 @@ void qStrSetNullTerm(struct HeStr* str) {
 }
 
 
-bool qStrSetResv(struct HeStr* str, size_t reserveLen)
+bool str_set_resv(struct he_allocator* alloc,struct he_str* str, size_t reserveLen)
 {
     if (reserveLen > str->alloc)
     {
         str->alloc = reserveLen;
-        str->buf = (char*)realloc(str->buf, str->alloc);
+        //str->buf = (char*)realloc(str->buf, str->alloc);
+        str->buf = (char*)he_alloc_realloc(alloc, str->buf, str->alloc);
         if (str->buf == NULL)
             return false;
     }
     return true;
 }
 
-struct HeStr qStrDup(const struct HeStr* str)
+struct he_str str_dup(struct he_allocator* allocator, const struct he_str* str)
 {
     assert(str);
-    struct HeStr result = { 0 };
+    struct he_str result = { 0 };
     if (str->buf == NULL)
         return result;
-    result.buf = (char*)malloc(str->len + 1);
+    result.buf = (char *)he_alloc_malloc(allocator, str->len + 1);
     if (result.buf == NULL)
         return result;
     memcpy(result.buf, str->buf, str->len);
@@ -220,11 +230,11 @@ struct HeStr qStrDup(const struct HeStr* str)
     return result;
 }
 
-bool qStrAppendSlice(struct HeStr* str, const struct HeStrSpan slice)
+bool str_append_slice(struct he_allocator* alloc,struct he_str* str, const struct he_str_span slice)
 {
     if(slice.len == 0)
         return true;
-    if (!qStrMakeRoomFor(str, slice.len + 1))
+    if (!str_make_room_for(alloc,str, slice.len + 1))
         return false;
     memmove(str->buf + str->len, slice.buf, slice.len);
     str->len += slice.len;
@@ -232,7 +242,7 @@ bool qStrAppendSlice(struct HeStr* str, const struct HeStrSpan slice)
     return true;
 }
 
-int qstrfmtll(struct HeStrSpan slice, long long value)
+int str_fmt_ll(struct he_str_span slice, long long value)
 {
     unsigned long long v;
     /* Generate the string representation, this method produces
@@ -283,7 +293,7 @@ int qstrfmtll(struct HeStrSpan slice, long long value)
     return len;
 }
 
-int qstrfmtull(struct HeStrSpan slice, unsigned long long value)
+int str_fmt_ull(struct he_str_span slice, unsigned long long value)
 {
     /* Generate the string representation, this method produces
      * a reversed string. */
@@ -313,8 +323,24 @@ int qstrfmtull(struct HeStrSpan slice, unsigned long long value)
     }
     return len;
 }
+int str_fmt_ull_comma_seperated(struct he_str_span slice, unsigned long long value) {
+    const int res = str_fmt_ull(slice, value);
+    if(res < 0) {
+       return res;
+    }
+    int comma_count = 0;
+    for (int i = res - 3; i > 0; i -= 3) {
+      if (res + comma_count + 1 >= (int)slice.len) {
+        return -1; // Buffer overflow during comma insertion
+      }
+      memmove(slice.buf + i + 1, slice.buf + i, res - i + comma_count);
+      slice.buf[i] = ',';
+      comma_count++;
+    }
+    return res + comma_count;
+}
 
-bool qstrcatfmt(struct HeStr* s, char const* fmt, ...)
+bool str_cat_fmt(struct he_str* s, char const* fmt, ...)
 {
     const char* f = fmt;
     va_list     ap;
@@ -322,7 +348,7 @@ bool qstrcatfmt(struct HeStr* s, char const* fmt, ...)
     /* To avoid continuous reallocations, let's start with a buffer that
      * can hold at least two times the format string itself. It's not the
      * best heuristic but seems to work in practice. */
-    if (!qStrMakeRoomFor(s, strlen(fmt) * 2))
+    if (!str_make_room_for(s, strlen(fmt) * 2))
         return false; // we failed to make room for
     va_start(ap, fmt);
     f = fmt; /* Next format specifier byte to process. */
@@ -332,9 +358,9 @@ bool qstrcatfmt(struct HeStr* s, char const* fmt, ...)
         long long num;
 
         /* Make sure there is always space for at least 1 char. */
-        if (qStrAvailLen(*s) == 0)
+        if (str_avil_len(*s) == 0)
         {
-            if (!qStrMakeRoomFor(s, 1))
+            if (!str_make_room_for(s, 1))
                 return false;
         }
         assert(s->len <= s->alloc);
@@ -355,7 +381,7 @@ bool qstrcatfmt(struct HeStr* s, char const* fmt, ...)
             case 's': {
                 char *str = va_arg( ap, char * );
                 const size_t len = strlen( str );
-                if( !qStrMakeRoomFor( s, len ) )
+                if( !str_make_room_for( s, len ) )
                     return false;
                 memcpy( s->buf + s->len, str, len );
                 s->len += len;
@@ -363,8 +389,8 @@ bool qstrcatfmt(struct HeStr* s, char const* fmt, ...)
             }
             case 'S':
             {
-                const struct HeStrSpan str = va_arg(ap, struct HeStrSpan);
-                if (!qStrMakeRoomFor(s, str.len))
+                const struct he_str_span str = va_arg(ap, struct he_str_span);
+                if (!str_make_room_for(s, str.len))
                     return false;
                 memcpy(s->buf + s->len, str.buf, str.len);
                 s->len += str.len;
@@ -376,22 +402,22 @@ bool qstrcatfmt(struct HeStr* s, char const* fmt, ...)
                 if (next == 'i')
                 {
                     num = va_arg(ap, int);
-                    if (!qStrMakeRoomFor(s, STR_LSTR_SIZE))
+                    if (!str_make_room_for(s, STR_LSTR_SIZE))
                         return false;
                 }
                 else if (next == 'l')
                 {
                     num = va_arg(ap, long);
-                    if (!qStrMakeRoomFor(s, STR_LSTR_SIZE))
+                    if (!str_make_room_for(s, STR_LSTR_SIZE))
                         return false;
                 }
                 else
                 {
                     num = va_arg(ap, long long);
-                    if (!qStrMakeRoomFor(s, STR_LSTR_SIZE))
+                    if (!str_make_room_for(s, STR_LSTR_SIZE))
                         return false;
                 }
-                const int len = qstrfmtll(qStrAvailSpan(*s), num);
+                const int len = str_fmt_ll(str_avil_span(*s), num);
                 if (len == -1)
                     return false;
                 s->len += len;
@@ -406,22 +432,22 @@ bool qstrcatfmt(struct HeStr* s, char const* fmt, ...)
                 if (next == 'u')
                 {
                     unum = va_arg(ap, unsigned int);
-                    if (!qStrMakeRoomFor(s, STR_LSTR_SIZE))
+                    if (!str_make_room_for(s, STR_LSTR_SIZE))
                         return false;
                 }
                 else if (next == 'L')
                 {
                     unum = va_arg(ap, unsigned long);
-                    if (!qStrMakeRoomFor(s, STR_LSTR_SIZE))
+                    if (!str_make_room_for(s, STR_LSTR_SIZE))
                         return false;
                 }
                 else
                 {
                     unum = va_arg(ap, unsigned long long);
-                    if (!qStrMakeRoomFor(s, STR_LSTR_SIZE))
+                    if (!str_make_room_for(s, STR_LSTR_SIZE))
                         return false;
                 }
-                const int len = qstrfmtull(qStrAvailSpan(*s), unum);
+                const int len = str_fmt_ull(str_avil_span(*s), unum);
                 if (len == -1)
                     return false;
                 s->len += len;
@@ -441,7 +467,7 @@ bool qstrcatfmt(struct HeStr* s, char const* fmt, ...)
     }
     va_end(ap);
 
-    if (!qStrMakeRoomFor(s, 1))
+    if (!str_make_room_for(s, 1))
         return false;
     /* Add null-term */
     s->buf[s->len] = '\0';
@@ -466,7 +492,7 @@ static inline size_t readNumberSign(const char* buf, size_t pos, size_t len, int
     return 0;
 }
 
-static inline size_t readNumberBase(const char* buf, size_t pos, size_t len, int* base)
+static inline size_t read_number_base(const char* buf, size_t pos, size_t len, int* base)
 {
     assert(base);
     (*base) = 10;
@@ -488,7 +514,7 @@ static inline size_t readNumberBase(const char* buf, size_t pos, size_t len, int
     return 0;
 }
 
-bool qStrReadull(struct HeStrSpan slice, unsigned long long* result)
+bool str_read_ull(struct he_str_span slice, unsigned long long* result)
 {
     assert(result);
     if (qStrEmpty(slice))
@@ -496,12 +522,12 @@ bool qStrReadull(struct HeStrSpan slice, unsigned long long* result)
 
     size_t pos = 0;
     int    numBase = 0;
-    pos += readNumberBase(slice.buf, pos, slice.len, &numBase);
+    pos += read_number_base(slice.buf, pos, slice.len, &numBase);
     unsigned long long val = 0;
     for (; pos < slice.len; pos++)
     {
         uint8_t digit = 0;
-        if (!charToDigit(slice.buf[pos], numBase, &digit))
+        if (!char_to_digit(slice.buf[pos], numBase, &digit))
             return false;
         if (val != 0)
         {
@@ -512,7 +538,7 @@ bool qStrReadull(struct HeStrSpan slice, unsigned long long* result)
     (*result) = val;
     return true;
 }
-bool qStrReadll(struct HeStrSpan slice, long long* result)
+bool str_read_ll(struct he_str_span slice, long long* result)
 {
     assert(result);
     if (qStrEmpty(slice))
@@ -522,12 +548,12 @@ bool qStrReadll(struct HeStrSpan slice, long long* result)
     int    sign = 1;
     int    numBase = 0;
     pos += readNumberSign(slice.buf, pos, slice.len, &sign);
-    pos += readNumberBase(slice.buf, pos, slice.len, &numBase);
+    pos += read_number_base(slice.buf, pos, slice.len, &numBase);
     int64_t val = 0;
     for (; pos < slice.len; pos++)
     {
         uint8_t digit = 0;
-        if (!charToDigit(slice.buf[pos], numBase, &digit))
+        if (!char_to_digit(slice.buf[pos], numBase, &digit))
             return false;
 
         if (val != 0)
@@ -540,7 +566,7 @@ bool qStrReadll(struct HeStrSpan slice, long long* result)
     return true;
 }
 
-bool qStrReadFloat(struct HeStrSpan slice, float* result) {
+bool str_read_float(struct he_str_span slice, float* result) {
     assert(result);
     if (qStrEmpty(slice))
         return false;
@@ -556,7 +582,7 @@ bool qStrReadFloat(struct HeStrSpan slice, float* result) {
             size_t pos2 = slice.len - 1;
             float fract = 0.0f;
             while (pos <= pos2) {
-                if (!charToDigit(slice.buf[pos2], 10, &digit))
+                if (!char_to_digit(slice.buf[pos2], 10, &digit))
                     return false;
                 fract += (digit * sign);
                 fract /= 10.0f;
@@ -565,7 +591,7 @@ bool qStrReadFloat(struct HeStrSpan slice, float* result) {
             val += fract;
             break;
         }
-        if (!charToDigit(slice.buf[pos], 10, &digit))
+        if (!char_to_digit(slice.buf[pos], 10, &digit))
             return false;
         if (val != 0)
         {
@@ -576,7 +602,7 @@ bool qStrReadFloat(struct HeStrSpan slice, float* result) {
     (*result) = val;
     return true;
 }
-bool qStrReadDouble(struct HeStrSpan slice, double* result) {
+bool str_read_double(struct he_str_span slice, double* result) {
     assert(result);
     if (qStrEmpty(slice))
         return false;
@@ -592,7 +618,7 @@ bool qStrReadDouble(struct HeStrSpan slice, double* result) {
             size_t pos2 = slice.len - 1;
             double fract = 0.0f;
             while (pos <= pos2) {
-                if (!charToDigit(slice.buf[pos2], 10, &digit))
+                if (!char_to_digit(slice.buf[pos2], 10, &digit))
                     return false;
                 fract += (digit * sign);
                 fract /= 10.0;
@@ -601,7 +627,7 @@ bool qStrReadDouble(struct HeStrSpan slice, double* result) {
             val += fract;
             break;
         }
-        if (!charToDigit(slice.buf[pos], 10, &digit))
+        if (!char_to_digit(slice.buf[pos], 10, &digit))
             return false;
         if (val != 0)
         {
@@ -613,22 +639,22 @@ bool qStrReadDouble(struct HeStrSpan slice, double* result) {
     return true;
 }
 
-int qstrsscanf(struct HeStrSpan slice, const char* fmt, ...)
+int str_sscanf(struct he_str_span slice, const char* fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    const int result = qstrvsscanf(slice, fmt, ap);
+    const int result = str_vsscanf(slice, fmt, ap);
     va_end(ap);
     return result;
 }
 
-int qstrvsscanf(struct HeStrSpan slice, const char* fmt, va_list ap)
+int str_vsscanf(struct he_str_span slice, const char* fmt, va_list ap)
 {
     va_list cpy;
     char    staticbuf[1024], *buf = staticbuf;
     if ((slice.len + 1) >= 1024)
     {
-        buf = (char*)malloc(slice.len + 1);
+        buf = (char*)he_malloc(slice.len + 1);
     }
     memcpy(buf, slice.buf, slice.len);
     buf[slice.len] = 0;
@@ -637,11 +663,11 @@ int qstrvsscanf(struct HeStrSpan slice, const char* fmt, va_list ap)
     const int res = vsscanf(buf, fmt, ap);
     va_end(cpy);
     if (buf != staticbuf)
-        free(buf);
+        he_free(buf);
     return res;
 }
 
-bool qstrcatvprintf(struct HeStr* str, const char* fmt, va_list ap)
+bool str_cat_vprintf(struct he_allocator* alloc,struct he_str* str, const char* fmt, va_list ap)
 {
     va_list cpy;
     char    staticbuf[1024], *buf = staticbuf;
@@ -652,7 +678,7 @@ bool qstrcatvprintf(struct HeStr* str, const char* fmt, va_list ap)
      * If not possible we revert to heap allocation. */
     if (buflen > sizeof(staticbuf))
     {
-        buf = (char*)malloc(buflen);
+        buf = (char*)he_malloc(buflen);
         if (buf == NULL)
             return false;
     }
@@ -671,15 +697,15 @@ bool qstrcatvprintf(struct HeStr* str, const char* fmt, va_list ap)
         if (bufstrlen < 0)
         {
             if (buf != staticbuf)
-                free(buf);
+                he_free(buf);
             return false;
         }
         if (((size_t)bufstrlen) >= buflen)
         {
             if (buf != staticbuf)
-                free(buf);
+                he_free(buf);
             buflen = ((size_t)bufstrlen) + 1;
-            buf = (char*)malloc(buflen);
+            buf = (char*)he_malloc(buflen);
             if (buf == NULL)
                 return false;
             continue;
@@ -688,25 +714,25 @@ bool qstrcatvprintf(struct HeStr* str, const char* fmt, va_list ap)
     }
 
     /* Finally concat the obtained string to the bstr string and return it. */
-    qStrAppendSlice(str, (struct HeStrSpan){ buf, (size_t)bufstrlen });
+    str_append_slice(str, (struct he_str_span){ buf, (size_t)bufstrlen });
     if (buf != staticbuf)
-        free(buf);
+        he_free(buf);
     return true;
 }
 
-bool qstrcatprintf(struct HeStr* s, const char* fmt, ...)
+bool str_cat_printf(struct he_str* s, const char* fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    const bool result = qstrcatvprintf(s, fmt, ap);
+    const bool result = str_cat_vprintf(s, fmt, ap);
     va_end(ap);
     return result;
 }
 
-bool qStrInsertSlice(struct HeStr* str, size_t offset, const struct HeStrSpan slice)
+bool str_insert_slice(struct he_allocator* alloc,struct he_str* str, size_t offset, const struct he_str_span slice)
 {
     assert(offset <= str->len);
-    if (!qStrMakeRoomFor(str, slice.len + 1))
+    if (!str_make_room_for(alloc,str, slice.len + 1))
         return false;
     memmove(str->buf + offset + slice.len, str->buf + offset, str->len - offset);
     for (size_t i = 0; i < slice.len; i++)
@@ -718,16 +744,16 @@ bool qStrInsertSlice(struct HeStr* str, size_t offset, const struct HeStrSpan sl
     return true;
 }
 
-bool qStrAppendChar(struct HeStr* str, char b) {
-    return qStrAppendSlice(str, (struct HeStrSpan){ &b,  1 }); 
+bool str_append_char(struct he_str* str, char b) {
+    return str_append_slice(str, (struct he_str_span){ &b,  1 }); 
 }
 
-bool qStrInsertChar(struct HeStr* str, size_t i, char b)
+bool str_insert_char(struct he_allocator* alloc,struct he_str* str, size_t i, char b)
 {
-    return qStrInsertSlice(str, i, (struct HeStrSpan){ &b,  1 });
+    return str_insert_slice(alloc,str, i, (struct he_str_span){ &b,  1 });
 }
 
-bool qStrMakeRoomFor(struct HeStr* str, size_t addlen)
+bool str_make_room_for(struct he_allocator* alloc,struct he_str* str, size_t addlen)
 {
     const size_t avail = str->alloc - str->len;
     if (avail >= addlen)
@@ -742,53 +768,54 @@ bool qStrMakeRoomFor(struct HeStr* str, size_t addlen)
     {
         reqSize += QSTR_MAX_PREALLOC;
     }
-    str->buf = (char*)realloc(str->buf, reqSize);
+    str->buf = (char*)he_alloc_realloc(alloc, str->buf, reqSize);
+    //str->buf = (char*)realloc(str->buf, reqSize);
     if (!str->buf)
         return false;
     str->alloc = reqSize;
     return true;
 }
 
-struct HeStrSpan qStrSplitIter(struct qStrSplitIterable* iterable)
+struct he_str_span str_split_iter(struct str_split_iterable* iterable)
 {
     assert(!qStrEmpty(iterable->buffer));
     assert(!qStrEmpty(iterable->delim));
     if (iterable->cursor == iterable->buffer.len)
-        return (struct HeStrSpan){ 0 };
+        return (struct he_str_span){ 0 };
 
-    const int offset = qStrIndexOfOffset(iterable->buffer, iterable->cursor, iterable->delim);
+    const int offset = str_index_of_offset(iterable->buffer, iterable->cursor, iterable->delim);
     if (offset == -1)
     {
-        struct HeStrSpan res = HeSubStrSpan(iterable->buffer, iterable->cursor, iterable->buffer.len);
+        struct he_str_span res = sub_str_span(iterable->buffer, iterable->cursor, iterable->buffer.len);
         iterable->cursor = iterable->buffer.len; // move the cursor to the very end of the buffer
         return res;
     }
-    struct HeStrSpan res = HeSubStrSpan(iterable->buffer, iterable->cursor, offset);
+    struct he_str_span res = sub_str_span(iterable->buffer, iterable->cursor, offset);
     iterable->cursor = offset + iterable->delim.len;
     return res;
 }
 
-struct HeStrSpan qStrSplitRevIter(struct qStrSplitIterable* iterable)
+struct he_str_span str_split_rev_iter(struct str_split_iterable* iterable)
 {
     assert(!qStrEmpty(iterable->buffer));
     assert(!qStrEmpty(iterable->delim));
     if (iterable->cursor == 0)
-        return (struct HeStrSpan) { 0 };
+        return (struct he_str_span) { 0 };
 
-    const int offset = qStrLastIndexOfOffset(iterable->buffer, iterable->cursor - 1, iterable->delim);
+    const int offset = str_last_index_of_offset(iterable->buffer, iterable->cursor - 1, iterable->delim);
     if (offset == -1)
     {
-        struct HeStrSpan res = HeSubStrSpan(iterable->buffer, 0, iterable->cursor);
+        struct he_str_span res = sub_str_span(iterable->buffer, 0, iterable->cursor);
         iterable->cursor = 0; // move the cursor to the very beginning of the buffer
         return res;
     }
     assert(offset + iterable->delim.len <= iterable->cursor);
-    struct HeStrSpan res = HeSubStrSpan(iterable->buffer, offset + iterable->delim.len, iterable->cursor);
+    struct he_str_span res = sub_str_span(iterable->buffer, offset + iterable->delim.len, iterable->cursor);
     iterable->cursor = offset;
     return res;
 }
 
-int qStrCaselessCompare(const struct HeStrSpan b0, const struct HeStrSpan b1)
+int qStrCaselessCompare(const struct he_str_span b0, const struct he_str_span b1)
 {
     size_t i0 = 0;
     size_t i1 = 0;
@@ -812,7 +839,7 @@ same_str:
     return 0;
 }
 
-int qStrCompare(const struct HeStrSpan b0, const struct HeStrSpan b1)
+int qStrCompare(const struct he_str_span b0, const struct he_str_span b1)
 {
     size_t i0 = 0;
     size_t i1 = 0;
@@ -838,7 +865,7 @@ same_str:
     return 0;
 }
 
-bool qStrCaselessEqual(const struct HeStrSpan b0, const struct HeStrSpan b1)
+bool str_casless_equal(const struct he_str_span b0, const struct he_str_span b1)
 {
     if (b0.len != b1.len)
         return 0;
@@ -855,7 +882,7 @@ bool qStrCaselessEqual(const struct HeStrSpan b0, const struct HeStrSpan b1)
     return 1;
 }
 
-bool qStrEqual(const struct HeStrSpan b0, const struct HeStrSpan b1)
+bool str_equal(const struct he_str_span b0, const struct he_str_span b1)
 {
     // printf("EQ: \"%.*s\" -- \"%.*s\"\n", (int)b0.len, b0.buf, (int)b1.len, b1.buf);
     if (b0.len != b1.len)
@@ -872,8 +899,8 @@ bool qStrEqual(const struct HeStrSpan b0, const struct HeStrSpan b1)
     return true;
 }
 
-static inline int qStrIndexOfCmp(const struct HeStrSpan haystack, size_t offset, const struct HeStrSpan needle,
-                                 qStrCmpHandle handle)
+static inline int str_index_of_cmp(const struct he_str_span haystack, size_t offset, const struct he_str_span needle,
+                                 str_cmp_handle handle)
 {
     if (needle.len > haystack.len || needle.len == 0)
         return -1;
@@ -884,7 +911,7 @@ static inline int qStrIndexOfCmp(const struct HeStrSpan haystack, size_t offset,
         {
             for (size_t j = 0; j < needle.len; j++)
             {
-                if (handle((struct HeStrSpan){  haystack.buf + i, needle.len }, needle))
+                if (handle((struct he_str_span){  haystack.buf + i, needle.len }, needle))
                 {
                     return i;
                 }
@@ -907,7 +934,7 @@ static inline int qStrIndexOfCmp(const struct HeStrSpan haystack, size_t offset,
     size_t i = offset;
     while (i <= haystack.len - needle.len)
     {
-        if (qStrEqual((struct HeStrSpan){ haystack.buf + i,  needle.len }, needle))
+        if (str_equal((struct he_str_span){ haystack.buf + i,  needle.len }, needle))
         {
             return i;
         }
@@ -916,8 +943,8 @@ static inline int qStrIndexOfCmp(const struct HeStrSpan haystack, size_t offset,
     return -1;
 }
 
-static inline int qstrLastIndexOfCmp(const struct HeStrSpan haystack, size_t offset, const struct HeStrSpan needle,
-                                     qStrCmpHandle handle)
+static inline int str_last_index_of_cmp(const struct he_str_span haystack, size_t offset, const struct he_str_span needle,
+                                     str_cmp_handle handle)
 {
     if (needle.len > haystack.len || needle.len == 0)
         return -1;
@@ -932,7 +959,7 @@ static inline int qstrLastIndexOfCmp(const struct HeStrSpan haystack, size_t off
             assert(i < haystack.len);
             for (size_t j = 0; j < needle.len; j++)
             {
-                if (handle((struct HeStrSpan){ haystack.buf + i, needle.len }, needle))
+                if (handle((struct he_str_span){ haystack.buf + i, needle.len }, needle))
                 {
                     return i;
                 }
@@ -961,7 +988,7 @@ static inline int qstrLastIndexOfCmp(const struct HeStrSpan haystack, size_t off
     size_t i = startIndex;
     while (1)
     {
-        if (handle((struct HeStrSpan){ haystack.buf + i, needle.len }, needle))
+        if (handle((struct he_str_span){ haystack.buf + i, needle.len }, needle))
         {
             return i;
         }
@@ -973,47 +1000,47 @@ static inline int qstrLastIndexOfCmp(const struct HeStrSpan haystack, size_t off
     return -1;
 }
 
-int qStrIndexOfOffset(const struct HeStrSpan haystack, size_t offset, const struct HeStrSpan needle)
+int str_index_of_offset(const struct he_str_span haystack, size_t offset, const struct he_str_span needle)
 {
-    return qStrIndexOfCmp(haystack, offset, needle, qStrEqual);
+    return str_index_of_cmp(haystack, offset, needle, str_equal);
 }
 
-int qStrIndexOf(const struct HeStrSpan haystack, const struct HeStrSpan needle)
+int str_index_of(const struct he_str_span haystack, const struct he_str_span needle)
 {
-    return qStrIndexOfCmp(haystack, 0, needle, qStrEqual);
+    return str_index_of_cmp(haystack, 0, needle, str_equal);
 }
 
-int qStrIndexOfCaseless(const struct HeStrSpan haystack, const struct HeStrSpan needle)
+int str_index_of_caseless(const struct he_str_span haystack, const struct he_str_span needle)
 {
-    return qStrIndexOfCmp(haystack, 0, needle, qStrCaselessEqual);
+    return str_index_of_cmp(haystack, 0, needle, str_casless_equal);
 }
 
-int qStrIndexOfCaselessOffset(const struct HeStrSpan haystack, size_t offset, const struct HeStrSpan needle)
+int str_index_of_caseless_offset(const struct he_str_span haystack, size_t offset, const struct he_str_span needle)
 {
-    return qStrIndexOfCmp(haystack, offset, needle, qStrCaselessEqual);
+    return str_index_of_cmp(haystack, offset, needle, str_casless_equal);
 }
 
-int qStrLastIndexOf(const struct HeStrSpan haystack, const struct HeStrSpan needle)
+int str_last_index_of(const struct he_str_span haystack, const struct he_str_span needle)
 {
-    return qstrLastIndexOfCmp(haystack, haystack.len, needle, qStrEqual);
+    return str_last_index_of_cmp(haystack, haystack.len, needle, str_equal);
 }
 
-int qStrLastIndexOfOffset(const struct HeStrSpan haystack, size_t offset, const struct HeStrSpan needle)
+int str_last_index_of_offset(const struct he_str_span haystack, size_t offset, const struct he_str_span needle)
 {
-    return qstrLastIndexOfCmp(haystack, offset, needle, qStrEqual);
+    return str_last_index_of_cmp(haystack, offset, needle, str_equal);
 }
 
-int qStrLastIndexOfCaseless(const struct HeStrSpan haystack, const struct HeStrSpan needle)
+int str_last_index_of_caseless(const struct he_str_span haystack, const struct he_str_span needle)
 {
-    return qstrLastIndexOfCmp(haystack, haystack.len, needle, qStrCaselessEqual);
+    return str_last_index_of_cmp(haystack, haystack.len, needle, str_casless_equal);
 }
 
-int qStrLastIndexOfCaselessOffset(const struct HeStrSpan haystack, size_t offset, const struct HeStrSpan needle)
+int str_last_index_of_caseless_offset(const struct he_str_span haystack, size_t offset, const struct he_str_span needle)
 {
-    return qstrLastIndexOfCmp(haystack, offset, needle, qStrCaselessEqual);
+    return str_last_index_of_cmp(haystack, offset, needle, str_casless_equal);
 }
 
-int qStrIndexOfAny(const struct HeStrSpan haystack, const struct HeStrSpan characters)
+int str_index_of_any(const struct he_str_span haystack, const struct he_str_span characters)
 {
     for (size_t i = 0; i < haystack.len; i++)
     {
@@ -1028,7 +1055,7 @@ int qStrIndexOfAny(const struct HeStrSpan haystack, const struct HeStrSpan chara
     return false;
 }
 
-bool qstrcatjoin(struct HeStr* str, struct HeStrSpan* slices, size_t numSlices, struct HeStrSpan sep)
+bool str_cat_join(struct he_str* str, struct he_str_span* slices, size_t numSlices, struct he_str_span sep)
 {
     {
         assert(str);
@@ -1043,7 +1070,7 @@ bool qstrcatjoin(struct HeStr* str, struct HeStrSpan* slices, size_t numSlices, 
             reserveLen += slices[i].len;
             reserveLen += sep.len;
         }
-        if (!qStrMakeRoomFor(str, reserveLen))
+        if (!str_make_room_for(str, reserveLen))
             return false;
     }
     for (size_t i = 0; i < numSlices; i++)
@@ -1062,12 +1089,12 @@ bool qstrcatjoin(struct HeStr* str, struct HeStrSpan* slices, size_t numSlices, 
     return true;
 }
 
-bool qstrcatjoinCStr(struct HeStr* str, const char** argv, size_t argc, struct HeStrSpan sep)
+bool str_cat_join_c(struct he_str* str, const char** argv, size_t argc, struct he_str_span sep)
 {
     for (size_t i = 0; i < argc; i++)
     {
         const size_t argLen = strlen(argv[i]);
-        if (!qStrMakeRoomFor(str, argLen + sep.len + 1))
+        if (!str_make_room_for(str, argLen + sep.len + 1))
             return false;
         memcpy(str->buf + str->len, argv[i], argLen);
         str->len += argLen;
@@ -1082,7 +1109,7 @@ bool qstrcatjoinCStr(struct HeStr* str, const char** argv, size_t argc, struct H
     return true;
 }
 
-int qStrLastIndexOfAny(const struct HeStrSpan haystack, const struct HeStrSpan characters)
+int str_last_index_of_any(const struct he_str_span haystack, const struct he_str_span characters)
 {
     for (size_t i = haystack.len;; i--)
     {
@@ -1098,7 +1125,7 @@ int qStrLastIndexOfAny(const struct HeStrSpan haystack, const struct HeStrSpan c
 }
 
 // minimum length is 7 + precision
-static int doubleToShorStr(struct HeStrSpan str, double d, int precision)
+int double_to_short_str(struct he_str_span str, double d, int precision)
 {
     const int len = snprintf(str.buf, str.len, "%.*f", precision, d);
     if(len < 0 || len == str.len) 
@@ -1125,10 +1152,10 @@ static int doubleToShorStr(struct HeStrSpan str, double d, int precision)
     return end > 0 ? (size_t)end : 0;
 }
 
-int qPrettyPrintBytes(struct HeStrSpan slice, size_t numBytes)
+int pretty_print_bytes(struct he_str_span slice, size_t numBytes)
 {
-    const struct HeStrSpan strs[] = {
-        HeCToStrRef("B"), HeCToStrRef("KB"), HeCToStrRef("MB"), HeCToStrRef("GB"), HeCToStrRef("TB"),
+    const struct he_str_span strs[] = {
+        c_to_str_span("B"), c_to_str_span("KB"), c_to_str_span("MB"), c_to_str_span("GB"), c_to_str_span("TB"),
     };
     double   value = (double)numBytes;
     uint64_t i = 0;
@@ -1137,10 +1164,10 @@ int qPrettyPrintBytes(struct HeStrSpan slice, size_t numBytes)
         value /= 1024;
         ++i;
     }
-    size_t pos = doubleToShorStr(slice, value, 1);
+    size_t pos = double_to_short_str(slice, value, 1);
     if (pos == -1)
         return -1;
-    struct HeStrSpan subStr = HeSubStrSpan(slice, pos, slice.len);
+    struct he_str_span subStr = sub_str_span(slice, pos, slice.len);
 
     size_t len = HE_MIN(strs[i].len, subStr.len);
     if (len < strs[i].len)
@@ -1150,9 +1177,9 @@ int qPrettyPrintBytes(struct HeStrSpan slice, size_t numBytes)
     return pos;
 }
 
-int qPrettyPrintDuration(struct HeStrSpan slice, double ns)
+int pretty_print_duration(struct he_str_span slice, double ns)
 {
-    const struct  HeStrSpan strs[] = { HeCToStrRef("ns"), HeCToStrRef("ms"), HeCToStrRef("s"), HeCToStrRef("m"), HeCToStrRef("h"), HeCToStrRef("d") };
+    const struct  he_str_span strs[] = { c_to_str_span("ns"), c_to_str_span("ms"), c_to_str_span("s"), c_to_str_span("m"), c_to_str_span("h"), c_to_str_span("d") };
 
     uint64_t i = 0;
 
@@ -1188,10 +1215,10 @@ int qPrettyPrintDuration(struct HeStrSpan slice, double ns)
         ++precision;
     }
 
-    size_t pos = doubleToShorStr(slice, ns, precision);
+    size_t pos = double_to_short_str(slice, ns, precision);
     if (pos == -1)
         return -1;
-    struct HeStrSpan subStr = HeSubStrSpan(slice, pos, slice.len);
+    struct he_str_span subStr = sub_str_span(slice, pos, slice.len);
 
     size_t len = HE_MIN(strs[i].len, subStr.len);
     if (len < strs[i].len)

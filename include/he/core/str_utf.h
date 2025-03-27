@@ -12,7 +12,7 @@
 #define HE_IS_LEGAL_UNICODE_POINT(v)  ((((v) < 0xD800L) || ((v) > 0xDFFFL)) && (((unsigned long)(v)) <= 0x0010FFFFL) && (((v)|0x1F0001) != 0x1FFFFFL))
 
 struct HeStrUTFIterable_s {
-  const struct HeStrSpan buffer; // the buffer to iterrate over
+  const struct he_str_span buffer; // the buffer to iterrate over
   size_t cursor;
 };
 
