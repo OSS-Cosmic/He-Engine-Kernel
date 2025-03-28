@@ -1,390 +1,393 @@
-#include "../qstr.h"
+#include "he/core/str.h"
+#include "he/core/alloc.h"
+#include "he/core/log.h"
 #include "utest.h"
 
-UTEST(qstr, qCaselessCompare)
+UTEST(str, str_caseless_compare)
 {
-    EXPECT_EQ(qStrCaselessCompare(CToStrRef("test"), CToStrRef("TEST")), 0);
-    EXPECT_EQ(qStrCaselessCompare(CToStrRef("testAA"), CToStrRef("TEST")), 1);
+    EXPECT_EQ(str_caseless_compare(c_to_str_span("test"), c_to_str_span("TEST")), 0);
+    EXPECT_EQ(str_caseless_compare(c_to_str_span("testAA"), c_to_str_span("TEST")), 1);
 }
 
-UTEST(qstr, qCompare)
+UTEST(str, str_casless_equal)
 {
-    EXPECT_EQ(qStrCompare(CToStrRef("test"), CToStrRef("TEST")), 32);
-    EXPECT_EQ(qStrCompare(CToStrRef("Test"), CToStrRef("test")), -32);
+    EXPECT_EQ(str_casless_equal(c_to_str_span("Hello world"), c_to_str_span("Hello world")), 1);
+    EXPECT_EQ(str_casless_equal(c_to_str_span("Helloworld"), c_to_str_span("Hello world")), 0);
+    EXPECT_EQ(str_casless_equal(c_to_str_span("Hello World"), c_to_str_span("Hello world")), 1);
+    EXPECT_EQ(str_casless_equal(c_to_str_span("Hello"), c_to_str_span("Hello ")), 0);
 }
 
-UTEST(qstr, qIndexOf)
+UTEST(str, str_compare)
 {
-    EXPECT_EQ(qStrIndexOf(CToStrRef("foo foo"), CToStrRef("foo")), 0);
-    EXPECT_EQ(qStrIndexOf(CToStrRef("banana"), CToStrRef("ana")), 1);
-    EXPECT_EQ(qStrIndexOf(CToStrRef("textbook"), CToStrRef("book")), 4);
-    EXPECT_EQ(qStrIndexOf(CToStrRef("abababcabababcbab"), CToStrRef("ababc")), 2);
-    EXPECT_EQ(qStrIndexOf(CToStrRef("This is a test string to see how Boyer-Moore handles longer searches"), CToStrRef("searches")), 60);
-    EXPECT_EQ(qStrIndexOf(CToStrRef("hello world"), CToStrRef("hello")), 0);
-    EXPECT_EQ(qStrIndexOf(CToStrRef("apple banana"), CToStrRef("nana")), 8);
-    EXPECT_EQ(qStrIndexOf(CToStrRef("goodbye"), CToStrRef("bye")), 4);
-    EXPECT_EQ(qStrIndexOf(CToStrRef("cat"), CToStrRef("dog")), -1);
-    EXPECT_EQ(qStrIndexOf(CToStrRef(""), CToStrRef("abc")), -1);
-    EXPECT_EQ(qStrIndexOf(CToStrRef("hello"), CToStrRef("")), -1);
-    EXPECT_EQ(qStrIndexOf(CToStrRef("abc"), CToStrRef("abcd")), -1);
+    EXPECT_EQ(str_compare(c_to_str_span("test"), c_to_str_span("TEST")), 32);
+    EXPECT_EQ(str_compare(c_to_str_span("Test"), c_to_str_span("test")), -32);
 }
 
-UTEST(qstr, qStrReadDouble) 
+UTEST(str, str_index_of)
+{
+    EXPECT_EQ(str_index_of(c_to_str_span("foo foo"), c_to_str_span("foo")), 0);
+    EXPECT_EQ(str_index_of(c_to_str_span("banana"), c_to_str_span("ana")), 1);
+    EXPECT_EQ(str_index_of(c_to_str_span("textbook"), c_to_str_span("book")), 4);
+    EXPECT_EQ(str_index_of(c_to_str_span("abababcabababcbab"), c_to_str_span("ababc")), 2);
+    EXPECT_EQ(str_index_of(c_to_str_span("This is a test string to see how Boyer-Moore handles longer searches"), c_to_str_span("searches")), 60);
+    EXPECT_EQ(str_index_of(c_to_str_span("hello world"), c_to_str_span("hello")), 0);
+    EXPECT_EQ(str_index_of(c_to_str_span("apple banana"), c_to_str_span("nana")), 8);
+    EXPECT_EQ(str_index_of(c_to_str_span("goodbye"), c_to_str_span("bye")), 4);
+    EXPECT_EQ(str_index_of(c_to_str_span("cat"), c_to_str_span("dog")), -1);
+    EXPECT_EQ(str_index_of(c_to_str_span(""), c_to_str_span("abc")), -1);
+    EXPECT_EQ(str_index_of(c_to_str_span("hello"), c_to_str_span("")), -1);
+    EXPECT_EQ(str_index_of(c_to_str_span("abc"), c_to_str_span("abcd")), -1);
+}
+
+UTEST(str, str_read_double) 
 {
     double result = 0;
-    EXPECT_TRUE(qStrReadDouble(CToStrRef(".01"), &result));
+    EXPECT_TRUE(str_read_double(c_to_str_span(".01"), &result));
     EXPECT_NEAR(result, .01f, .0001f);
     
-    EXPECT_TRUE(qStrReadDouble(CToStrRef("5.01"), &result));
+    EXPECT_TRUE(str_read_double(c_to_str_span("5.01"), &result));
     EXPECT_NEAR(result, 5.01f, .0001f);
     
-    EXPECT_TRUE(qStrReadDouble(CToStrRef("5.01"), &result));
+    EXPECT_TRUE(str_read_double(c_to_str_span("5.01"), &result));
     EXPECT_NEAR(result, 5.01f, .0001f);
     
-    EXPECT_TRUE(qStrReadDouble(CToStrRef("-5.01"), &result));
+    EXPECT_TRUE(str_read_double(c_to_str_span("-5.01"), &result));
     EXPECT_NEAR(result, -5.01f, .0001f);
 }
 
-UTEST(qstr, qStrReadFloat)
+UTEST(str, str_read_float)
 {
     float result = 0;
-    EXPECT_TRUE(qStrReadFloat(CToStrRef(".01"), &result));
+    EXPECT_TRUE(str_read_float(c_to_str_span(".01"), &result));
     EXPECT_NEAR(result, .01f, .0001f);
     
-    EXPECT_TRUE(qStrReadFloat(CToStrRef("5.01"), &result));
+    EXPECT_TRUE(str_read_float(c_to_str_span("5.01"), &result));
     EXPECT_NEAR(result, 5.01f, .0001f);
     
-    EXPECT_TRUE(qStrReadFloat(CToStrRef("5.01"), &result));
+    EXPECT_TRUE(str_read_float(c_to_str_span("5.01"), &result));
     EXPECT_NEAR(result, 5.01f, .0001f);
     
-    EXPECT_TRUE(qStrReadFloat(CToStrRef("-5.01"), &result));
+    EXPECT_TRUE(str_read_float(c_to_str_span("-5.01"), &result));
     EXPECT_NEAR(result, -5.01f, .0001f);
 
 }
 
-UTEST(qstr, qLastIndexOf)
+UTEST(str, qLastIndexOf)
 {
-    EXPECT_EQ(qStrLastIndexOf(CToStrRef("foo foo"), CToStrRef(" ")), 3);
-    EXPECT_EQ(qStrLastIndexOf(CToStrRef("foo foo"), CToStrRef("foo")), 4);
-    EXPECT_EQ(qStrLastIndexOf(CToStrRef("banana"), CToStrRef("ana")), 3);
-    EXPECT_EQ(qStrLastIndexOf(CToStrRef("textbook"), CToStrRef("book")), 4);
-    EXPECT_EQ(qStrLastIndexOf(CToStrRef("abababcabababcbab"), CToStrRef("ababc")), 9);
-    EXPECT_EQ(qStrLastIndexOf(CToStrRef("This is a test string to see how Boyer-Moore handles longer searches"), CToStrRef("searches")), 60);
-    EXPECT_EQ(qStrLastIndexOf(CToStrRef("hello world"), CToStrRef("hello")), 0);
-    EXPECT_EQ(qStrLastIndexOf(CToStrRef("apple banana"), CToStrRef("nana")), 8);
-    EXPECT_EQ(qStrLastIndexOf(CToStrRef("goodbye"), CToStrRef("bye")), 4);
-    EXPECT_EQ(qStrLastIndexOf(CToStrRef("cat"), CToStrRef("dog")), -1);
-    EXPECT_EQ(qStrLastIndexOf(CToStrRef(""), CToStrRef("abc")), -1);
-    EXPECT_EQ(qStrLastIndexOf(CToStrRef("hello"), CToStrRef("")), -1);
-    EXPECT_EQ(qStrLastIndexOf(CToStrRef("abc"), CToStrRef("abcd")), -1);
+    EXPECT_EQ(str_last_index_of(c_to_str_span("foo foo"), c_to_str_span(" ")), 3);
+    EXPECT_EQ(str_last_index_of(c_to_str_span("foo foo"), c_to_str_span("foo")), 4);
+    EXPECT_EQ(str_last_index_of(c_to_str_span("banana"), c_to_str_span("ana")), 3);
+    EXPECT_EQ(str_last_index_of(c_to_str_span("textbook"), c_to_str_span("book")), 4);
+    EXPECT_EQ(str_last_index_of(c_to_str_span("abababcabababcbab"), c_to_str_span("ababc")), 9);
+    EXPECT_EQ(str_last_index_of(c_to_str_span("This is a test string to see how Boyer-Moore handles longer searches"), c_to_str_span("searches")), 60);
+    EXPECT_EQ(str_last_index_of(c_to_str_span("hello world"), c_to_str_span("hello")), 0);
+    EXPECT_EQ(str_last_index_of(c_to_str_span("apple banana"), c_to_str_span("nana")), 8);
+    EXPECT_EQ(str_last_index_of(c_to_str_span("goodbye"), c_to_str_span("bye")), 4);
+    EXPECT_EQ(str_last_index_of(c_to_str_span("cat"), c_to_str_span("dog")), -1);
+    EXPECT_EQ(str_last_index_of(c_to_str_span(""), c_to_str_span("abc")), -1);
+    EXPECT_EQ(str_last_index_of(c_to_str_span("hello"), c_to_str_span("")), -1);
+    EXPECT_EQ(str_last_index_of(c_to_str_span("abc"), c_to_str_span("abcd")), -1);
 }
 
-UTEST(qstr, qEq)
+UTEST(str, qEq)
 {
-    EXPECT_EQ(qStrEqual(CToStrRef("Hello world"), CToStrRef("Hello world")), 1);
-    EXPECT_EQ(qStrEqual(CToStrRef("Helloworld"), CToStrRef("Hello world")), 0);
-    EXPECT_EQ(qStrEqual(CToStrRef("Hello World"), CToStrRef("Hello world")), 0);
-    EXPECT_EQ(qStrEqual(CToStrRef("Hello"), CToStrRef("Hello ")), 0);
+    EXPECT_EQ(str_equal(c_to_str_span("Hello world"), c_to_str_span("Hello world")), 1);
+    EXPECT_EQ(str_equal(c_to_str_span("Helloworld"), c_to_str_span("Hello world")), 0);
+    EXPECT_EQ(str_equal(c_to_str_span("Hello World"), c_to_str_span("Hello world")), 0);
+    EXPECT_EQ(str_equal(c_to_str_span("Hello"), c_to_str_span("Hello ")), 0);
 }
 
-UTEST(qstr, qDuplicate)
+UTEST(str, qDuplicate)
 {
-    struct Str s1 = { 0 };
-    EXPECT_EQ(qStrAssign(&s1, CToStrRef("Hello World")), true);
-    struct Str s2 = qStrDup(&s1);
-    EXPECT_NE(s1.buf, s2.buf);
-    qStrFree(&s1);
-    qStrFree(&s2);
+  struct he_str s1 = {0};
+  EXPECT_EQ(str_assign(&default_alloc, &s1, c_to_str_span("Hello World")), true);
+  struct he_str s2 = str_dup(&default_alloc, &s1);
+  EXPECT_NE(s1.buf, s2.buf);
+  str_free(&default_alloc, &s1);
+  str_free(&default_alloc, &s2);
 }
 
-UTEST(qstr, qIterateRev)
+UTEST(str, qIterateRev)
 {
-    struct StrSpan           buf = CToStrRef("one two three four five");
-    struct qStrSplitIterable iterable = { buf, CToStrRef(" "), buf.len };
-    struct StrSpan           s = { 0 };
-    s = qStrSplitRevIter(&iterable);
-    EXPECT_EQ(qStrEmpty(s), 0);
-    EXPECT_EQ(qStrEqual(CToStrRef("five"), s), 1);
-    s = qStrSplitRevIter(&iterable);
-    EXPECT_EQ(qStrEmpty(s), 0);
-    EXPECT_EQ(qStrEqual(CToStrRef("four"), s), 1);
-    s = qStrSplitRevIter(&iterable);
-    EXPECT_EQ(qStrEmpty(s), 0);
-    EXPECT_EQ(qStrEqual(CToStrRef("three"), s), 1);
-    s = qStrSplitRevIter(&iterable);
-    EXPECT_EQ(qStrEmpty(s), 0);
-    EXPECT_EQ(qStrEqual(CToStrRef("two"), s), 1);
-    s = qStrSplitRevIter(&iterable);
-    EXPECT_EQ(qStrEmpty(s), 0);
-    EXPECT_EQ(qStrEqual(CToStrRef("one"), s), 1);
-    s = qStrSplitRevIter(&iterable);
-    EXPECT_EQ(qStrEmpty(s), 1);
+  struct he_str_span buf = c_to_str_span("one two three four five");
+  struct str_split_iterable iterable = {buf, c_to_str_span(" "), buf.len};
+  struct he_str_span s = {0};
+  s = str_split_rev_iter(&iterable);
+  EXPECT_EQ(str_empty(s), 0);
+  EXPECT_EQ(str_equal(c_to_str_span("five"), s), 1);
+  s = str_split_rev_iter(&iterable);
+  EXPECT_EQ(str_empty(s), 0);
+  EXPECT_EQ(str_equal(c_to_str_span("four"), s), 1);
+  s = str_split_rev_iter(&iterable);
+  EXPECT_EQ(str_empty(s), 0);
+  EXPECT_EQ(str_equal(c_to_str_span("three"), s), 1);
+  s = str_split_rev_iter(&iterable);
+  EXPECT_EQ(str_empty(s), 0);
+  EXPECT_EQ(str_equal(c_to_str_span("two"), s), 1);
+  s = str_split_rev_iter(&iterable);
+  EXPECT_EQ(str_empty(s), 0);
+  EXPECT_EQ(str_equal(c_to_str_span("one"), s), 1);
+  s = str_split_rev_iter(&iterable);
+  EXPECT_EQ(str_empty(s), 1);
 }
 
-UTEST(qstr, qReadull)
+UTEST(str, str_read_ull)
 {
     unsigned long long res = 0;
-    EXPECT_EQ(qStrReadull(CToStrRef("123456"), &res), 1);
+    EXPECT_EQ(str_read_ull(c_to_str_span("123456"), &res), 1);
     EXPECT_EQ(res, 123456);
 }
 
-UTEST(qstr, qReadu32)
+UTEST(str, str_read_ll)
 {
     long long res = 0;
-    EXPECT_EQ(qStrReadll(CToStrRef("123456"), &res), 1);
+    EXPECT_EQ(str_read_ll(c_to_str_span("123456"), &res), 1);
     EXPECT_EQ(res, 123456);
 }
 
-UTEST(qstr, qIterateWhiteSpace)
+UTEST(str, str_split_iter__whitespace)
 {
-    struct qStrSplitIterable iterable = { CToStrRef("one  two"), CToStrRef(" "), 0 };
-    struct StrSpan           s = { 0 };
+    struct str_split_iterable  iterable = { c_to_str_span("one  two"), c_to_str_span(" "), 0 };
+    struct he_str_span           s = { 0 };
 
-    s = qStrSplitIter(&iterable);
-    EXPECT_EQ(qStrEmpty(s), 0);
-    EXPECT_EQ(qStrEqual(CToStrRef("one"), s), 1);
+    s = str_split_iter(&iterable);
+    EXPECT_EQ(str_empty(s), 0);
+    EXPECT_EQ(str_equal(c_to_str_span("one"), s), 1);
 
-    s = qStrSplitIter(&iterable);
-    EXPECT_EQ(qStrEmpty(s), 1);
+    s = str_split_iter(&iterable);
+    EXPECT_EQ(str_empty(s), 1);
 
-    s = qStrSplitIter(&iterable);
-    EXPECT_EQ(qStrEqual(CToStrRef("two"), s), 1);
+    s = str_split_iter(&iterable);
+    EXPECT_EQ(str_equal(c_to_str_span("two"), s), 1);
 
-    s = qStrSplitIter(&iterable);
-    EXPECT_EQ(qStrEmpty(s), 1);
+    s = str_split_iter(&iterable);
+    EXPECT_EQ(str_empty(s), 1);
 }
 
-UTEST(qstr, qIterateCount)
+UTEST(str, iterate_count)
 {
     {
-        struct qStrSplitIterable iterable = { CToStrRef("one two three four five"), CToStrRef(" "), 0 };
-        struct StrSpan slices[] = {
-            CToStrRef("one"), CToStrRef("two"), CToStrRef("three"), CToStrRef("four"), CToStrRef("five"),
+        struct str_split_iterable  iterable = { c_to_str_span("one two three four five"), c_to_str_span(" "), 0 };
+        struct he_str_span slices[] = {
+            c_to_str_span("one"), c_to_str_span("two"), c_to_str_span("three"), c_to_str_span("four"), c_to_str_span("five"),
         };
         size_t i = 0;
         while (iterable.cursor < iterable.buffer.len)
         {
-            struct StrSpan it = qStrSplitIter(&iterable);
-            EXPECT_EQ(qStrEqual(slices[i++], it), 1);
+            struct he_str_span it = str_split_iter(&iterable);
+            EXPECT_EQ(str_equal(slices[i++], it), 1);
         }
     }
     {
-        struct qStrSplitIterable iterable = { CToStrRef("one   two"), CToStrRef(" "), 0 };
-        struct StrSpan slices[] = {
-            CToStrRef("one"),
-            CToStrRef(""),
-            CToStrRef(""),
-            CToStrRef("two"),
+        struct str_split_iterable  iterable = { c_to_str_span("one   two"), c_to_str_span(" "), 0 };
+        struct he_str_span slices[] = {
+            c_to_str_span("one"),
+            c_to_str_span(""),
+            c_to_str_span(""),
+            c_to_str_span("two"),
         };
         size_t i = 0;
         while (iterable.cursor < iterable.buffer.len)
         {
-            struct StrSpan it = qStrSplitIter(&iterable);
-            EXPECT_EQ(qStrEqual(slices[i++], it), 1);
+            struct he_str_span it = str_split_iter(&iterable);
+            EXPECT_EQ(str_equal(slices[i++], it), 1);
         }
     }
 }
 
-UTEST(qstr, qIterate)
+UTEST(str, qIterate)
 {
-    struct qStrSplitIterable iterable = { CToStrRef("one two three four five"), CToStrRef(" "),  0 };
+    struct str_split_iterable  iterable = { c_to_str_span("one two three four five"), c_to_str_span(" "),  0 };
 
-    struct StrSpan s = { 0 };
-    s = qStrSplitIter(&iterable);
-    EXPECT_EQ(qStrEmpty(s), 0);
-    EXPECT_EQ(qStrEqual(CToStrRef("one"), s), 1);
-    s = qStrSplitIter(&iterable);
-    EXPECT_EQ(qStrEmpty(s), 0);
-    EXPECT_EQ(qStrEqual(CToStrRef("two"), s), 1);
-    s = qStrSplitIter(&iterable);
-    EXPECT_EQ(qStrEmpty(s), 0);
-    EXPECT_EQ(qStrEqual(CToStrRef("three"), s), 1);
-    s = qStrSplitIter(&iterable);
-    EXPECT_EQ(qStrEmpty(s), 0);
-    EXPECT_EQ(qStrEqual(CToStrRef("four"), s), 1);
-    s = qStrSplitIter(&iterable);
-    EXPECT_EQ(qStrEmpty(s), 0);
-    EXPECT_EQ(qStrEqual(CToStrRef("five"), s), 1);
-    s = qStrSplitIter(&iterable);
-    EXPECT_EQ(qStrEmpty(s), 1);
+    struct he_str_span s = { 0 };
+    s = str_split_iter(&iterable);
+    EXPECT_EQ(str_empty(s), 0);
+    EXPECT_EQ(str_equal(c_to_str_span("one"), s), 1);
+    s = str_split_iter(&iterable);
+    EXPECT_EQ(str_empty(s), 0);
+    EXPECT_EQ(str_equal(c_to_str_span("two"), s), 1);
+    s = str_split_iter(&iterable);
+    EXPECT_EQ(str_empty(s), 0);
+    EXPECT_EQ(str_equal(c_to_str_span("three"), s), 1);
+    s = str_split_iter(&iterable);
+    EXPECT_EQ(str_empty(s), 0);
+    EXPECT_EQ(str_equal(c_to_str_span("four"), s), 1);
+    s = str_split_iter(&iterable);
+    EXPECT_EQ(str_empty(s), 0);
+    EXPECT_EQ(str_equal(c_to_str_span("five"), s), 1);
+    s = str_split_iter(&iterable);
+    EXPECT_EQ(str_empty(s), 1);
 }
 
-UTEST(qstr, qfmtWriteLongLong)
+UTEST(str, str_fmt_ll)
 {
     char   test_buffer[STR_LLSTR_SIZE];
-    size_t len = qstrfmtll((struct StrSpan){  test_buffer, STR_LLSTR_SIZE }, 12481);
+    size_t len = str_fmt_ll((struct he_str_span){  test_buffer, STR_LLSTR_SIZE }, 12481);
     EXPECT_EQ(len, 5);
-    EXPECT_EQ(qStrEqual(CToStrRef("12481"), (struct StrSpan){ test_buffer, len }), true);
+    EXPECT_EQ(str_equal(c_to_str_span("12481"), (struct he_str_span){ test_buffer, len }), true);
 }
 
-UTEST(qstr, qCaselessEq)
-{
-    EXPECT_EQ(qStrCaselessEqual(CToStrRef("Hello world"), CToStrRef("Hello world")), 1);
-    EXPECT_EQ(qStrCaselessEqual(CToStrRef("Helloworld"), CToStrRef("Hello world")), 0);
-    EXPECT_EQ(qStrCaselessEqual(CToStrRef("Hello World"), CToStrRef("Hello world")), 1);
-    EXPECT_EQ(qStrCaselessEqual(CToStrRef("Hello"), CToStrRef("Hello ")), 0);
-}
 
-UTEST(qstr, qCatJoin)
+UTEST(str, str_cat_join)
 {
-    struct Str     buf = { 0 };
-    struct StrSpan slices[] = {
-        CToStrRef("one"),
-        CToStrRef("two"),
-        CToStrRef("three"),
-        CToStrRef("four"),
+    struct he_str buf = { 0 };
+    struct he_str_span slices[] = {
+        c_to_str_span("one"),
+        c_to_str_span("two"),
+        c_to_str_span("three"),
+        c_to_str_span("four"),
     };
-    EXPECT_EQ(qstrcatjoin(&buf, slices, 4, CToStrRef(" ")), true);
-    EXPECT_EQ(qStrEqual(ToStrRef(buf), CToStrRef("one two three four")), true);
-    qStrFree(&buf);
+    EXPECT_EQ(str_cat_join(&default_alloc, &buf, slices, 4, c_to_str_span(" ")), true);
+    EXPECT_EQ(str_equal(str_to_str_span(buf), c_to_str_span("one two three four")), true);
+    str_free(&default_alloc,&buf);
 }
 
-UTEST(qstr, qCatJoinCstr)
+UTEST(str, str_cat_join_c)
 {
-    struct Str buf = { 0 };
+    struct he_str buf = { 0 };
     const char* slices[] = {
         "one",
         "two",
         "three",
         "four",
     };
-    EXPECT_EQ(qstrcatjoinCStr(&buf, slices, 4, CToStrRef(" ")), true);
-    EXPECT_EQ(qStrEqual(ToStrRef(buf), CToStrRef("one two three four")), true);
-    qStrFree(&buf);
+    EXPECT_EQ(str_cat_join_c(&default_alloc, &buf, slices, 4, c_to_str_span(" ")), true);
+    EXPECT_EQ(str_equal(str_to_str_span(buf), c_to_str_span("one two three four")), true);
+    str_free(&default_alloc, &buf);
 }
 
-UTEST(qstr, appendSlice)
+UTEST(str, str_append_slice)
 {
-    struct Str buf = { 0 };
-    qStrAssign(&buf, CToStrRef("Hello"));
-    EXPECT_EQ(qStrAppendSlice(&buf, CToStrRef(" world")), true);
-    EXPECT_EQ(qStrEqual(ToStrRef(buf), CToStrRef("Hello world")), true);
-    qStrFree(&buf);
+    struct he_str buf = { 0 };
+    str_assign(&default_alloc ,&buf, c_to_str_span("Hello"));
+    EXPECT_EQ(str_append_slice(&default_alloc,&buf, c_to_str_span(" world")), true);
+    EXPECT_EQ(str_equal(str_to_str_span(buf), c_to_str_span("Hello world")), true);
+    str_free(&default_alloc,&buf);
 }
 
-UTEST(qstr, qcatprintf)
+UTEST(str, str_cat_printf)
 {
-    struct Str buf = { 0 };
-    EXPECT_EQ(qstrcatprintf(&buf, "Hello %s", "world"), true);
-    EXPECT_EQ(qStrEqual(ToStrRef(buf), CToStrRef("Hello world")), true);
+    struct he_str buf = { 0 };
+    EXPECT_EQ(str_cat_printf(&default_alloc, &buf, "Hello %s", "world"), true);
+    EXPECT_EQ(str_equal(str_to_str_span(buf), c_to_str_span("Hello world")), true);
 
-    qStrSetLen(&buf, 0);
-    EXPECT_EQ(qstrcatprintf(&buf, "%d", 123), true);
-    EXPECT_EQ(qStrEqual(ToStrRef(buf), CToStrRef("123")), true);
+    str_set_len(&default_alloc,&buf, 0);
+    EXPECT_EQ(str_cat_printf(&default_alloc,&buf, "%d", 123), true);
+    EXPECT_EQ(str_equal(str_to_str_span(buf), c_to_str_span("123")), true);
 
-    EXPECT_EQ(qstrcatprintf(&buf, " %lu", 156), true);
-    EXPECT_EQ(qStrEqual(ToStrRef(buf), CToStrRef("123 156")), true);
+    EXPECT_EQ(str_cat_printf(&default_alloc,&buf, " %lu", 156), true);
+    EXPECT_EQ(str_equal(str_to_str_span(buf), c_to_str_span("123 156")), true);
 
-    qStrSetLen(&buf, 0);
-    EXPECT_EQ(qstrcatprintf(&buf, "a%cb", 0), true);
-    EXPECT_EQ(qStrEqual(ToStrRef(buf), (struct StrSpan){ (char*)"a\0" "b",(size_t)3 }), 1);
-    qStrFree(&buf);
+    str_set_len(&default_alloc,&buf, 0);
+    EXPECT_EQ(str_cat_printf(&default_alloc, &buf, "a%cb", 0), true);
+    EXPECT_EQ(str_equal(str_to_str_span(buf), (struct he_str_span){ (char*)"a\0" "b",(size_t)3 }), 1);
+    str_free(&default_alloc,&buf);
 }
 
-UTEST(qstr, qcatfmt)
-{
-    struct Str s = { 0 };
-    {
-        qstrcatfmt(&s, "%S\n", CToStrRef("Hello World"));
-        EXPECT_EQ(qStrEqual(ToStrRef(s), CToStrRef("Hello World\n")), true);
-        qStrClear(&s);
-    }
-    {
-        qstrcatfmt(&s, "%i\n", 125);
-        EXPECT_EQ(qStrEqual(ToStrRef(s), CToStrRef("125\n")), true);
-        qStrClear(&s);
-    }
-    {
-        qstrcatfmt(&s, "%i\n", -125);
-        EXPECT_EQ(qStrEqual(ToStrRef(s), CToStrRef("-125\n")), true);
-        qStrClear(&s);
-    }
-    qStrFree(&s);
+UTEST(str, str_cat_fmt) {
+  struct he_str s = {0};
+  {
+    str_cat_fmt(&default_alloc, &s, "%S\n", c_to_str_span("Hello World"));
+    EXPECT_EQ(str_equal(str_to_str_span(s), c_to_str_span("Hello World\n")),
+              true);
+    str_clear(&default_alloc, &s);
+  }
+  {
+    str_cat_fmt(&default_alloc, &s, "%i\n", 125);
+    EXPECT_EQ(str_equal(str_to_str_span(s), c_to_str_span("125\n")), true);
+    str_clear(&default_alloc, &s);
+  }
+  {
+    str_cat_fmt(&default_alloc, &s, "%i\n", -125);
+    EXPECT_EQ(str_equal(str_to_str_span(s), c_to_str_span("-125\n")), true);
+    str_clear(&default_alloc, &s);
+  }
+  str_free(&default_alloc, &s);
 }
 
-UTEST(qstr, updateLen)
+UTEST(str, str_update_len)
 {
-    struct Str buf = { 0 };
-    qStrAssign(&buf, CToStrRef("Hello World"));
+    struct he_str buf = { 0 };
+    str_assign(&default_alloc,&buf, c_to_str_span("Hello World"));
     buf.buf[5] = '\0';
-    qStrUpdateLen(&buf);
+    str_update_len(&buf);
 
-    EXPECT_EQ(qStrEqual(ToStrRef(buf), CToStrRef("Hello")), true);
+    EXPECT_EQ(str_equal(str_to_str_span(buf), c_to_str_span("Hello")), true);
     EXPECT_EQ(buf.len, 5);
 
-    qStrFree(&buf);
+    str_free(&default_alloc,&buf);
 }
 
-UTEST(qstr, qStrAssign)
+UTEST(str, str_assign)
 {
-    struct Str buf = { 0 };
+    struct he_str buf = { 0 };
     {
-        qStrAssign(&buf, CToStrRef("Hello World"));
-        EXPECT_EQ(qStrEqual(ToStrRef(buf), CToStrRef("Hello World")), true);
+        str_assign(&default_alloc, &buf, c_to_str_span("Hello World"));
+        EXPECT_EQ(str_equal(str_to_str_span(buf), c_to_str_span("Hello World")), true);
     }
     {
-        qStrAssign(&buf, qStrTrim(CToStrRef("   Hello World   ")));
-        EXPECT_EQ(qStrEqual(ToStrRef(buf), CToStrRef("Hello World")), true);
+        str_assign(&default_alloc, &buf, str_trim(c_to_str_span("   Hello World   ")));
+        EXPECT_EQ(str_equal(str_to_str_span(buf), c_to_str_span("Hello World")), true);
     }
-    qStrFree(&buf);
+    str_free(&default_alloc, &buf);
 }
 
-UTEST(qstr, q_rtrim)
+UTEST(str, str_r_trim)
 {
-    EXPECT_EQ(qStrEqual(qStrRTrim(CToStrRef("Hello world  ")), CToStrRef("Hello world")), true);
-    EXPECT_EQ(qStrEqual(qStrRTrim(CToStrRef("  Hello world  ")), CToStrRef("  Hello world")), true);
-    EXPECT_EQ(qStrEqual(qStrRTrim(CToStrRef("  ")), CToStrRef("")), true);
-    EXPECT_EQ(qStrEqual(qStrRTrim(CToStrRef(" ")), CToStrRef("")), true);
-    EXPECT_EQ(qStrEqual(qStrRTrim(CToStrRef("\n")), CToStrRef("")), true);
-    EXPECT_EQ(qStrEqual(qStrRTrim(CToStrRef("\t")), CToStrRef("")), true);
+    EXPECT_EQ(str_equal(str_r_trim(c_to_str_span("Hello world  ")), c_to_str_span("Hello world")), true);
+    EXPECT_EQ(str_equal(str_r_trim(c_to_str_span("  Hello world  ")), c_to_str_span("  Hello world")), true);
+    EXPECT_EQ(str_equal(str_r_trim(c_to_str_span("  ")), c_to_str_span("")), true);
+    EXPECT_EQ(str_equal(str_r_trim(c_to_str_span(" ")), c_to_str_span("")), true);
+    EXPECT_EQ(str_equal(str_r_trim(c_to_str_span("\n")), c_to_str_span("")), true);
+    EXPECT_EQ(str_equal(str_r_trim(c_to_str_span("\t")), c_to_str_span("")), true);
 }
 
-UTEST(qstr, q_ltrim)
+UTEST(str, str_l_trim)
 {
-    EXPECT_EQ(qStrEqual(qStrLTrim(CToStrRef("Hello world  ")), CToStrRef("Hello world  ")), true);
-    EXPECT_EQ(qStrEqual(qStrLTrim(CToStrRef("  ")), CToStrRef("")), true);
-    EXPECT_EQ(qStrEqual(qStrLTrim(CToStrRef(" ")), CToStrRef("")), true);
-    EXPECT_EQ(qStrEqual(qStrLTrim(CToStrRef("\n")), CToStrRef("")), true);
-    EXPECT_EQ(qStrEqual(qStrLTrim(CToStrRef("\t")), CToStrRef("")), true);
+    EXPECT_EQ(str_equal(str_l_trim(c_to_str_span("Hello world  ")), c_to_str_span("Hello world  ")), true);
+    EXPECT_EQ(str_equal(str_l_trim(c_to_str_span("  ")), c_to_str_span("")), true);
+    EXPECT_EQ(str_equal(str_l_trim(c_to_str_span(" ")), c_to_str_span("")), true);
+    EXPECT_EQ(str_equal(str_l_trim(c_to_str_span("\n")), c_to_str_span("")), true);
+    EXPECT_EQ(str_equal(str_l_trim(c_to_str_span("\t")), c_to_str_span("")), true);
 }
 
-UTEST(qstr, qStrTrim)
+UTEST(str, str_trim)
 {
     {
-        struct Str buf = { 0 };
-        qStrAssign(&buf, CToStrRef("  Hello World "));
-        qStrAssign(&buf, qStrTrim(ToStrRef(buf)));
-        EXPECT_EQ(qStrEqual(ToStrRef(buf), CToStrRef("Hello World")), true);
-        qStrFree(&buf);
+      struct he_str buf = {0};
+      str_assign(&default_alloc, &buf, c_to_str_span("  Hello World "));
+      str_assign(&default_alloc, &buf, str_trim(str_to_str_span(buf)));
+      EXPECT_EQ(str_equal(str_to_str_span(buf), c_to_str_span("Hello World")), true);
+      str_free(&default_alloc, &buf);
     }
 
-    EXPECT_EQ(qStrEqual(qStrTrim(CToStrRef("Hello world  ")), CToStrRef("Hello world")), true);
-    EXPECT_EQ(qStrEqual(qStrTrim(CToStrRef("  \t Hello world  ")), CToStrRef("Hello world")), true);
-    EXPECT_EQ(qStrEqual(qStrTrim(CToStrRef("  ")), CToStrRef("")), true);
-    EXPECT_EQ(qStrEqual(qStrTrim(CToStrRef(" ")), CToStrRef("")), true);
-    EXPECT_EQ(qStrEqual(qStrTrim(CToStrRef("\n")), CToStrRef("")), true);
-    EXPECT_EQ(qStrEqual(qStrTrim(CToStrRef("\t")), CToStrRef("")), true);
+    EXPECT_EQ(str_equal(str_trim(c_to_str_span("Hello world  ")), c_to_str_span("Hello world")), true);
+    EXPECT_EQ(str_equal(str_trim(c_to_str_span("  \t Hello world  ")), c_to_str_span("Hello world")), true);
+    EXPECT_EQ(str_equal(str_trim(c_to_str_span("  ")), c_to_str_span("")), true);
+    EXPECT_EQ(str_equal(str_trim(c_to_str_span(" ")), c_to_str_span("")), true);
+    EXPECT_EQ(str_equal(str_trim(c_to_str_span("\n")), c_to_str_span("")), true);
+    EXPECT_EQ(str_equal(str_trim(c_to_str_span("\t")), c_to_str_span("")), true);
 }
 
-UTEST(qstr, qsscanf)
+UTEST(str, str_sscanf)
 {
     {
         uint32_t a = 0;
         uint32_t b = 0;
-        int      read = qstrsscanf(CToStrRef("10.132"), "%u.%u", &a, &b);
+        int      read = str_sscanf(c_to_str_span("10.132"), "%u.%u", &a, &b);
         EXPECT_EQ(read, 2);
         EXPECT_EQ(a, 10);
         EXPECT_EQ(b, 132);
     }
 }
 
-// UTEST(qstr, qSliceToUtf16CodePoint) {
+// UTEST(str, qSliceToUtf16CodePoint) {
 //   unsigned char leftPointingMagnify[] = {0x3D,0xD8,0x0D,0xDD};
 //
 //   struct tf_utf_result_s res;
 //   {
-//     struct qStrSplitIterable iter = {
-//       .buffer = (struct StrSpan) {
+//     struct str_split_iterable  iter = {
+//       .buffer = (struct he_str_span) {
 //         .buf = (const char*)leftPointingMagnify,
 //         .len = 2,
 //       },
@@ -395,8 +398,8 @@ UTEST(qstr, qsscanf)
 //     EXPECT_EQ((bool)res.finished, true);
 //   }
 //   {
-//     struct qStrSplitIterable iter = {
-//       .buffer = (struct StrSpan) {
+//     struct str_split_iterable  iter = {
+//       .buffer = (struct he_str_span) {
 //         .buf = (const char*)leftPointingMagnify,
 //         .len = sizeof(leftPointingMagnify),
 //       },
@@ -408,8 +411,8 @@ UTEST(qstr, qsscanf)
 //     EXPECT_EQ((bool)res.finished, true);
 //   }
 //   {
-//     struct qStrSplitIterable iter = (struct qStrSplitIterable){
-//       .buffer = (struct StrSpan) {
+//     struct str_split_iterable  iter = (struct str_split_iterable ){
+//       .buffer = (struct he_str_span) {
 //         .buf = NULL,
 //         .len = 0,
 //       },
@@ -421,8 +424,8 @@ UTEST(qstr, qsscanf)
 //   }
 //   {
 //     char badInput[] = {0};
-//     struct qStrSplitIterable iter = (struct qStrSplitIterable){
-//         .buffer = (struct StrSpan){
+//     struct str_split_iterable  iter = (struct str_split_iterable ){
+//         .buffer = (struct he_str_span){
 //           .buf = badInput,
 //           .len = 0,
 //         },
@@ -434,10 +437,10 @@ UTEST(qstr, qsscanf)
 //
 // }
 
-// UTEST(qstr, qSliceToUtf8CodePoint) {
+// UTEST(str, qSliceToUtf8CodePoint) {
 //   char smilyCat[] = {0xF0, 0x9F, 0x98, 0xBC};
-//   struct qStrSplitIterable iter = {
-//     .buffer = (struct StrSpan) {
+//   struct str_split_iterable  iter = {
+//     .buffer = (struct he_str_span) {
 //       .len = sizeof(smilyCat),
 //       .buf = smilyCat
 //     },
@@ -448,30 +451,30 @@ UTEST(qstr, qsscanf)
 //   EXPECT_EQ(res.codePoint, 0x0001f63c);
 //
 //   char charU[] = {'U'};
-//   EXPECT_EQ(tfSliceToUtf8CodePoint((struct StrSpan) {
+//   EXPECT_EQ(tfSliceToUtf8CodePoint((struct he_str_span) {
 //     .len = sizeof(charU),
 //     .buf = charU
 //   }, 0), 'U');
 //
 //   char ringOperator[] = {0xe2, 0x88, 0x98};
-//   EXPECT_EQ(tfSliceToUtf8CodePoint((struct StrSpan) {
+//   EXPECT_EQ(tfSliceToUtf8CodePoint((struct he_str_span) {
 //     .len = sizeof(ringOperator),
 //     .buf = ringOperator
 //   }, 0), 0x2218);
 //
 //   // this has an extra byte
 //   char badRingOperator[] = {0xe2, 0x88, 0x98, 0x1};
-//   EXPECT_EQ(tfSliceToUtf8CodePoint((struct StrSpan) {
+//   EXPECT_EQ(tfSliceToUtf8CodePoint((struct he_str_span) {
 //     .len = sizeof(badRingOperator),
 //     .buf = badRingOperator
 //   }, 1), 1);
 // }
 
-// UTEST(qstr, qUtf8CodePointIter) {
+// UTEST(str, qUtf8CodePointIter) {
 //   {
 //     unsigned char smilyCat[] = {0xF0, 0x9F, 0x98, 0xBC};
-//     struct qStrSplitIterable iter = {
-//       .buffer = (struct StrSpan) {
+//     struct str_split_iterable  iter = {
+//       .buffer = (struct he_str_span) {
 //         .buf = (char*)smilyCat,
 //         .len = sizeof(smilyCat),
 //       },
@@ -485,7 +488,7 @@ UTEST(qstr, qsscanf)
 // {
 //   // Ḽơᶉëᶆ
 //   unsigned char buffer[] = {0xE1, 0xB8, 0xBC, 0xC6, 0xA1, 0xE1, 0xB6, 0x89,0xC3, 0xAB,0xE1, 0xB6,0x86 };
-//   struct qStrSplitIterable iterable = {
+//   struct str_split_iterable  iterable = {
 //     .buffer = {
 //       .buf = (const char*)buffer,
 //       .len = sizeof(buffer)
@@ -519,5 +522,13 @@ UTEST(qstr, qsscanf)
 //   }
 // }
 
-UTEST_MAIN();
+UTEST_STATE();
+int main(int argc, const char *const argv[]) {
+  he_init_alloc();
+  he_init_log("str_test",eALL);
+  int res = utest_main(argc, argv);
+  he_exit_log();
+  he_exit_alloc();
+  return res;
+}
 

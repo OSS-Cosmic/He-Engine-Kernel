@@ -68,8 +68,8 @@ LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 
 */
 
-#ifndef Q_HASHER_H
-#define Q_HASHER_H
+#ifndef _HASHER_H__
+#define _HASHER_H__
 
 #include "he/core/arch.h"
 

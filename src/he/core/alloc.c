@@ -217,19 +217,36 @@ static HANDLE gProcessHandle;
 #endif
 
 void he_init_alloc() {
-  he_init_mutex(&DefaultHeMutexDesc, &alloc_mutex);
+  he_init_mutex(&default_mutex_desc, &alloc_mutex);
 #ifdef HE_ALLOC_BACKTRACE
 #ifdef _WIN32
-    // SymInitialize specifies that is should never be used with GetCurrentProcess and the handle should
-    // be unique to avoid issues with sharing. A few libraries do it anyway though and it seems to work fine.
-    // However avoid any undefined behaviour we create a real handle from GetCurrentProcess that we can
-    // later use with SymInitialize.
-    HANDLE currentProcess = GetCurrentProcess();
-    DuplicateHandle(currentProcess, currentProcess, currentProcess, &gProcessHandle, 0, true, DUPLICATE_SAME_ACCESS);
+  // SymInitialize specifies that is should never be used with GetCurrentProcess
+  // and the handle should be unique to avoid issues with sharing. A few
+  // libraries do it anyway though and it seems to work fine. However avoid any
+  // undefined behaviour we create a real handle from GetCurrentProcess that we
+  // can later use with SymInitialize.
+  HANDLE currentProcess = GetCurrentProcess();
+  DuplicateHandle(currentProcess, currentProcess, currentProcess,
+                  &gProcessHandle, 0, true, DUPLICATE_SAME_ACCESS);
+#endif
+#endif
+}
+
+void he_exit_alloc() {
+
+  struct he_file file = {0};
+  fs_open("./MemLeaks.memleak", HE_FS_WRITE, &file);
+  write_leak_report(&file);
+  fs_close(&file);
+
+#ifdef HE_ALLOC_BACKTRACE
+#ifdef _WIN32
+    CloseHandle(gProcessHandle);
 #endif
 #endif
 
-} 
+}
+
 
 
 // ---------------------------------------------------------------------------------------------------------------------------------
@@ -509,9 +526,9 @@ void write_leak_report(struct he_file *file) {
     time_t t = time(NULL);
     struct tm tme;
 #ifdef HE_TARGET_WINDOWS
-    localtime_s(&tme, &t);
+    localtime_r(&tme, &t);
 #else
-    localtime_s(&t, &tme);
+    localtime_r(&t, &tme);
 #endif
 
     {
@@ -545,33 +562,16 @@ void write_leak_report(struct he_file *file) {
       __write_allocations(file);
     }
 
-    __write_to_file(file, "----All Allocations and Deallocations----");
-
-    // dumpLine(&fh, allMemoryLog);
+    __write_to_file(file, "----All Allocations and Deallocations----\n");
 
     if (!stats.totalAllocUnitCount) {
-      __write_to_file(file, " ------------------------------------------------------------------------------");
-      __write_to_file(file, "Congratulations! No memory leaks found!");
-      __write_to_file(file, " ------------------------------------------------------------------------------");
+      __write_to_file(file, "------------------------------------------------------------------------------\n");
+      __write_to_file(file, "Congratulations! No memory leaks found!\n");
+      __write_to_file(file, "------------------------------------------------------------------------------\n");
     }
   }
 
   HE_RAW_ASSERT(stats.totalAllocUnitCount == 0 && "Memory leaks found");
-}
-
-void he_exit_alloc() {
-
-  struct he_file file = {0};
-  fs_open("./MemLeaks.memleak", HE_FS_WRITE, &file);
-  write_leak_report(&file);
-  fs_close(&file);
-
-#ifdef HE_ALLOC_BACKTRACE
-#ifdef _WIN32
-    CloseHandle(gProcessHandle);
-#endif
-#endif
-
 }
 
 struct MemoryStatistics he_get_memory_stats()
@@ -900,12 +900,13 @@ if (HE_ALLOC_ALWAYS_LOG_ALL)
   if (HE_ALLOC_ALWAYS_LOG_ALL) {
     char source_buffer[256];
     struct he_str_span buf = {source_buffer, HE_ARRAY_COUNT(source_buffer)};
-    const size_t len = owning_string(buf, c_to_str_span(f), l, c_to_str_span(sf));
+    const size_t len =
+        owning_string(buf, c_to_str_span(f), l, c_to_str_span(sf));
     HE_LOGF(eMEMORY_ALLOC, "[-] -----  0x%08zX by %*.s",
             (size_t)((void *)(ptr)), (int)len, buf.buf);
   }
 
-    HE_LOGF_IF(eMEMORY_ALLOC, au == NULL,
+  HE_LOGF_IF(eMEMORY_ALLOC, au == NULL,
              "[!] Requested to reallocated RAM that was never allocated");
   HE_RAW_ASSERT(au != NULL); // ptr has not been allocated
   {

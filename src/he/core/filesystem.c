@@ -6,7 +6,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-bool fs_open(const char *path, enum HeFileMode_e mode, struct he_file *fs) {
+bool fs_open(const char *path, enum he_file_mode mode, struct he_file *fs) {
 #ifdef HE_TARGET_UNIX
   memset(fs, 0, sizeof *fs);
 

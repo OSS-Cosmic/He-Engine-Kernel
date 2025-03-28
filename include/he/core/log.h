@@ -182,7 +182,7 @@ extern "C"
     void he_init_log(const char* appName, enum HeLogLevel_e level);
     void he_exit_log(void);
 
-    void he_add_log_file(const char* filename, enum HeFileMode_e file_mode, enum HeLogLevel_e log_level);
+    void he_add_log_file(const char* filename, enum he_file_mode file_mode, enum HeLogLevel_e log_level);
     void he_add_log_callback(uint32_t log_level, void* user_data, log_callback_fn callback, log_close_fn close,
                                   log_flush_fn flush);
 

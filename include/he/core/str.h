@@ -101,7 +101,7 @@ extern "C" {
 void str_free(struct he_allocator* alloc,struct he_str* str);
 void str_upper(struct he_str_span slice);
 void str_lower(struct he_str_span slice);
-#define qStrEmpty(b) ((b).buf == NULL || (b).len == 0)
+#define str_empty(b) ((b).buf == NULL || (b).len == 0)
 
 struct he_str_span str_trim(struct he_str_span slice);
 struct he_str_span str_r_trim(struct he_str_span  slice);
@@ -122,7 +122,7 @@ bool str_make_room_for(struct he_allocator* alloc,struct he_str* str, size_t add
  * Note: this does not set the null terminator for the string.
  * this will corrupt slices that are referencing a slice out of this buffer.
  **/
-bool str_set_len(struct he_str* str, size_t len);
+bool str_set_len(struct he_allocator* alloc,struct he_str* str, size_t len);
 /**
  * set the amount of memory reserved by the Str. will only ever increase
  * the size of the string 
@@ -137,7 +137,7 @@ bool str_set_resv(struct he_allocator* alloc,struct he_str* str, size_t reserveL
  * so that next append operations will not require allocations up to the
  * number of bytes previously available. 
  **/
-bool str_clear(struct he_str* str);
+bool str_clear(struct he_allocator* allocator,struct he_str* str);
 
 /**
  * takes a Str and duplicates the underlying buffer.
@@ -159,7 +159,7 @@ bool str_assign(struct he_allocator* alloc,struct he_str* str, struct he_str_spa
  *
  * If the buffer fails to reallocate then false is returned
  **/
-bool str_resize(struct he_str* str, size_t len);
+bool str_resize(struct he_allocator* alloc,struct he_str* str, size_t len);
 
 
 struct str_split_iterable {
@@ -273,7 +273,7 @@ int str_vsscanf(struct he_str_span slice, const char* fmt, va_list ap);
  * %U - 64 bit unsigned integer (unsigned long long, uint64_t)
  * %% - Verbatim "%" character.
  */
-bool str_cat_fmt(struct he_str*, char const *fmt, ...);
+bool str_cat_fmt(struct he_allocator* alloc,struct he_str*, char const *fmt, ...);
 
 /*
  * join an array of slices and cat them to bstr. faster since the lengths are known ahead of time.
@@ -281,11 +281,11 @@ bool str_cat_fmt(struct he_str*, char const *fmt, ...);
  *
  * this modifies Str so slices that reference this Str can become invalid.
  **/
-bool str_cat_join(struct he_str*, struct he_str_span* slices, size_t numSlices, struct he_str_span sep);
+bool str_cat_join(struct he_allocator* alloc,struct he_str*, struct he_str_span* slices, size_t numSlices, struct he_str_span sep);
 /*
  * join an array of strings and cat them to Str 
  **/
-bool str_cat_join_c(struct he_str*, const char** argv, size_t argc, struct he_str_span sep);
+bool str_cat_join_c(struct he_allocator* alloc,struct he_str*, const char** argv, size_t argc, struct he_str_span sep);
 
 /**
  * this should fit safetly within BSTR_LLSTR_SIZE. 
@@ -320,14 +320,14 @@ bool str_read_double(struct he_str_span, double* result);
  *  returned indicating that the strings are equal. If the lengths are
  *  different, if the first slice is longer 1 else -1. 
  */
-int qStrCaselessCompare (const struct he_str_span b0, const struct he_str_span b1);
+int str_caseless_compare (const struct he_str_span b0, const struct he_str_span b1);
 /*
  *  The return value is the difference of the values of the characters where the
  *  two strings first differ after lower case transformation, otherwise 0 is
  *  returned indicating that the strings are equal. If the lengths are
  *  different, if the first slice is longer 1 else -1.
  */
-int qStrCompare  (const struct he_str_span b0, const struct he_str_span b1);
+int str_compare  (const struct he_str_span b0, const struct he_str_span b1);
 /**
 *  Test if two strings are equal ignores case true else false.  
 **/

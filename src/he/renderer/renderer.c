@@ -156,10 +156,10 @@ VkBool32 VKAPI_PTR __VK_DebugUtilsMessenger( VkDebugUtilsMessageSeverityFlagBits
 	return VK_FALSE;
 }
 
-inline static bool __VK_isExtensionNamesSupported( struct StrSpan extension, const char **extensions, size_t len )
+inline static bool __VK_isExtensionNamesSupported( struct he_str_span extension, const char **extensions, size_t len )
 {
 	for( size_t i = 0; i < len; i++ ) {
-		if( qStrCompare( qCToStrRef( extensions[i] ), extension ) == 0 ) {
+		if( qStrCompare( qc_to_str_span( extensions[i] ), extension ) == 0 ) {
 			return true;
 		}
 	}
@@ -176,10 +176,10 @@ inline static bool __VK_isExtensionSupported( const char *targetExt, VkExtension
 	return false;
 }
 
-static bool __VK_SupportExtension( VkExtensionProperties *properties, size_t len, struct StrSpan extension )
+static bool __VK_SupportExtension( VkExtensionProperties *properties, size_t len, struct he_str_span extension )
 {
 	for( size_t i = 0; i < len; i++ ) {
-		if( qStrCompare( qCToStrRef( (properties + i)->extensionName ), extension ) == 0 ) {
+		if( qStrCompare( qc_to_str_span( (properties + i)->extensionName ), extension ) == 0 ) {
 			return true;
 		}
 	}
@@ -236,7 +236,7 @@ int EnumerateRIAdapters( struct RIRenderer_s *renderer, struct RIPhysicalAdapter
 				R_VK_ADD_STRUCT( &features, &features12 );
 
 				VkPhysicalDevicePresentIdFeaturesKHR presentIdFeatures = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_FEATURES_KHR };
-				if( __VK_SupportExtension( extensionProperties, extensionNum, qCToStrRef( VK_KHR_PRESENT_ID_EXTENSION_NAME ) ) ) {
+				if( __VK_SupportExtension( extensionProperties, extensionNum, qc_to_str_span( VK_KHR_PRESENT_ID_EXTENSION_NAME ) ) ) {
 					R_VK_ADD_STRUCT( &features, &features13 );
 				}
 
@@ -282,12 +282,12 @@ int EnumerateRIAdapters( struct RIRenderer_s *renderer, struct RIPhysicalAdapter
 						break;
 				}
 
-				physicalAdapter->vk.isSwapChainSupported = __VK_SupportExtension( extensionProperties, extensionNum, qCToStrRef( VK_KHR_SWAPCHAIN_EXTENSION_NAME ) );
+				physicalAdapter->vk.isSwapChainSupported = __VK_SupportExtension( extensionProperties, extensionNum, qc_to_str_span( VK_KHR_SWAPCHAIN_EXTENSION_NAME ) );
 
 				physicalAdapter->vk.isPresentIDSupported = presentIdFeatures.presentId;
 				physicalAdapter->vk.isBufferDeviceAddressSupported =
-					physicalAdapter->vk.apiVersion >= VK_API_VERSION_1_2 || __VK_SupportExtension( extensionProperties, extensionNum, qCToStrRef( VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME ) );
-				physicalAdapter->vk.isBufferDeviceAddressSupported = __VK_SupportExtension( extensionProperties, extensionNum, qCToStrRef( VK_AMD_DEVICE_COHERENT_MEMORY_EXTENSION_NAME ) );
+					physicalAdapter->vk.apiVersion >= VK_API_VERSION_1_2 || __VK_SupportExtension( extensionProperties, extensionNum, qc_to_str_span( VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME ) );
+				physicalAdapter->vk.isBufferDeviceAddressSupported = __VK_SupportExtension( extensionProperties, extensionNum, qc_to_str_span( VK_AMD_DEVICE_COHERENT_MEMORY_EXTENSION_NAME ) );
 
 				const VkPhysicalDeviceLimits *limits = &properties.properties.limits;
 
@@ -551,31 +551,31 @@ int InitRIDevice( struct RIRenderer_s *renderer, struct RIDeviceDesc_s *init, st
 		{
 			struct Str str = { 0 };
 			uint8_t numFeatures = 0;
-			struct StrSpan queueFeatures[9];
+			struct he_str_span queueFeatures[9];
 			for( size_t i = 0; i < familyNum; i++ ) {
-				qStrSetLen( &str, 0 );
+				str_set_len( &str, 0 );
 				numFeatures = 0;
 				if(queueFamilyProps[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) 
-					queueFeatures[numFeatures++] = qCToStrRef("VK_QUEUE_GRAPHICS_BIT"); 
+					queueFeatures[numFeatures++] = qc_to_str_span("VK_QUEUE_GRAPHICS_BIT"); 
 				if(queueFamilyProps[i].queueFlags & VK_QUEUE_COMPUTE_BIT ) 
-					queueFeatures[numFeatures++] = qCToStrRef("VK_QUEUE_COMPUTE_BIT"); 
+					queueFeatures[numFeatures++] = qc_to_str_span("VK_QUEUE_COMPUTE_BIT"); 
 				if(queueFamilyProps[i].queueFlags & VK_QUEUE_TRANSFER_BIT) 
-					queueFeatures[numFeatures++] = qCToStrRef("VK_QUEUE_TRANSFER_BIT"); 
+					queueFeatures[numFeatures++] = qc_to_str_span("VK_QUEUE_TRANSFER_BIT"); 
 				if(queueFamilyProps[i].queueFlags & VK_QUEUE_SPARSE_BINDING_BIT) 
-					queueFeatures[numFeatures++] = qCToStrRef("VK_QUEUE_SPARSE_BINDING_BIT"); 
+					queueFeatures[numFeatures++] = qc_to_str_span("VK_QUEUE_SPARSE_BINDING_BIT"); 
 				if(queueFamilyProps[i].queueFlags & VK_QUEUE_PROTECTED_BIT) 
-					queueFeatures[numFeatures++] = qCToStrRef("VK_QUEUE_PROTECTED_BIT"); 
+					queueFeatures[numFeatures++] = qc_to_str_span("VK_QUEUE_PROTECTED_BIT"); 
 				if(queueFamilyProps[i].queueFlags & VK_QUEUE_VIDEO_DECODE_BIT_KHR) 
-					queueFeatures[numFeatures++] = qCToStrRef("VK_QUEUE_VIDEO_DECODE_BIT_KHR"); 
+					queueFeatures[numFeatures++] = qc_to_str_span("VK_QUEUE_VIDEO_DECODE_BIT_KHR"); 
 				if(queueFamilyProps[i].queueFlags & VK_QUEUE_VIDEO_ENCODE_BIT_KHR ) 
-					queueFeatures[numFeatures++] = qCToStrRef("VK_QUEUE_VIDEO_ENCODE_BIT_KHR"); 
+					queueFeatures[numFeatures++] = qc_to_str_span("VK_QUEUE_VIDEO_ENCODE_BIT_KHR"); 
 				if(queueFamilyProps[i].queueFlags & VK_QUEUE_OPTICAL_FLOW_BIT_NV ) 
-					queueFeatures[numFeatures++] = qCToStrRef("VK_QUEUE_OPTICAL_FLOW_BIT_NV"); 
-				qstrcatprintf(&str, "VK Queue - %lu: ", i);
-				qstrcatjoin(&str, queueFeatures, numFeatures, qCToStrRef(","));
+					queueFeatures[numFeatures++] = qc_to_str_span("VK_QUEUE_OPTICAL_FLOW_BIT_NV"); 
+				str_cat_printf(&str, "VK Queue - %lu: ", i);
+				str_cat_join(&str, queueFeatures, numFeatures, qc_to_str_span(","));
 				Com_Printf("%.*s", str.len, str.buf);
 			}
-			qStrFree( &str );
+			str_free( &str );
 		}
 
 		struct {
@@ -745,7 +745,7 @@ int InitRIDevice( struct RIRenderer_s *renderer, struct RIDeviceDesc_s *init, st
 		}
 
 		VkPhysicalDeviceMaintenance5FeaturesKHR maintenance5Features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_5_FEATURES_KHR };
-		if( __VK_isExtensionNamesSupported( qCToStrRef( VK_KHR_MAINTENANCE_5_EXTENSION_NAME ), enabledExtensionNames, arrlen( enabledExtensionNames ) ) ) {
+		if( __VK_isExtensionNamesSupported( qc_to_str_span( VK_KHR_MAINTENANCE_5_EXTENSION_NAME ), enabledExtensionNames, arrlen( enabledExtensionNames ) ) ) {
 			R_VK_ADD_STRUCT( &features, &maintenance5Features );
 			device->vk.maintenance5Features = true;
 		}
@@ -756,17 +756,17 @@ int InitRIDevice( struct RIRenderer_s *renderer, struct RIDeviceDesc_s *init, st
 		// }
 
 		VkPhysicalDevicePresentIdFeaturesKHR presentIdFeatures = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_FEATURES_KHR };
-		if( __VK_isExtensionNamesSupported( qCToStrRef( VK_KHR_PRESENT_ID_EXTENSION_NAME ), enabledExtensionNames, arrlen( enabledExtensionNames ) ) ) {
+		if( __VK_isExtensionNamesSupported( qc_to_str_span( VK_KHR_PRESENT_ID_EXTENSION_NAME ), enabledExtensionNames, arrlen( enabledExtensionNames ) ) ) {
 			R_VK_ADD_STRUCT( &features, &presentIdFeatures );
 		}
 
 		VkPhysicalDevicePresentWaitFeaturesKHR presentWaitFeatures = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_WAIT_FEATURES_KHR };
-		if( __VK_isExtensionNamesSupported( qCToStrRef( VK_KHR_PRESENT_WAIT_EXTENSION_NAME ), enabledExtensionNames, arrlen( enabledExtensionNames ) ) ) {
+		if( __VK_isExtensionNamesSupported( qc_to_str_span( VK_KHR_PRESENT_WAIT_EXTENSION_NAME ), enabledExtensionNames, arrlen( enabledExtensionNames ) ) ) {
 			R_VK_ADD_STRUCT( &features, &presentWaitFeatures );
 		}
 
 		VkPhysicalDeviceLineRasterizationFeaturesKHR lineRasterizationFeatures = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_KHR };
-		if( __VK_isExtensionNamesSupported( qCToStrRef( VK_KHR_LINE_RASTERIZATION_EXTENSION_NAME ), enabledExtensionNames, arrlen( enabledExtensionNames ) ) ) {
+		if( __VK_isExtensionNamesSupported( qc_to_str_span( VK_KHR_LINE_RASTERIZATION_EXTENSION_NAME ), enabledExtensionNames, arrlen( enabledExtensionNames ) ) ) {
 			R_VK_ADD_STRUCT( &features, &lineRasterizationFeatures );
 		}
 
@@ -827,7 +827,7 @@ int InitRIDevice( struct RIRenderer_s *renderer, struct RIDeviceDesc_s *init, st
 
 		vkGetPhysicalDeviceFeatures2( physicalAdapter->vk.physicalDevice, &features );
 		for( size_t idx = 0; idx < HE_ARRAY_COUNT( DefaultDeviceExtension ); idx++ ) {
-			if( __VK_SupportExtension( extensionProperties, extensionNum, qCToStrRef( DefaultDeviceExtension[idx] ) ) ) {
+			if( __VK_SupportExtension( extensionProperties, extensionNum, qc_to_str_span( DefaultDeviceExtension[idx] ) ) ) {
 				Com_Printf("Enabled Extension: %s", extensionProperties[idx].extensionName);
 				arrpush( enabledExtensionNames, DefaultDeviceExtension[idx] );
 			}

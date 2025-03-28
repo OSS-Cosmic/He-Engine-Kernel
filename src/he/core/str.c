@@ -88,7 +88,7 @@ struct he_str_span str_trim(struct he_str_span slice) { return str_l_trim(str_r_
 
 struct he_str_span str_r_trim(struct he_str_span slice)
 {
-    if (qStrEmpty(slice))
+    if (str_empty(slice))
         return (struct he_str_span){ slice.buf, 0 };
     for (size_t i = slice.len - 1;; i--)
     {
@@ -104,7 +104,7 @@ struct he_str_span str_r_trim(struct he_str_span slice)
 
 struct he_str_span str_l_trim(struct he_str_span slice)
 {
-    if (qStrEmpty(slice))
+    if (str_empty(slice))
         return (struct he_str_span){ slice.buf, 0 };
     for (size_t i = 0; i < slice.len; i++)
     {
@@ -116,11 +116,11 @@ struct he_str_span str_l_trim(struct he_str_span slice)
     return (struct he_str_span){ slice.buf, 0 };
 }
 
-bool str_assign(struct he_str* str, struct he_str_span slice)
+bool str_assign(struct he_allocator* allocator,struct he_str* str, struct he_str_span slice)
 {
     // set the length of the string alloc will
-    if (!str_set_len(str, slice.len))
-        return false;
+    if (!str_set_len(allocator, str, slice.len))
+      return false;
     // slices can potentially overlap to the dest string
     //    trimming and assigning
     memmove(str->buf, slice.buf, slice.len);
@@ -128,9 +128,9 @@ bool str_assign(struct he_str* str, struct he_str_span slice)
     return true;
 }
 
-bool str_resize(struct he_str* str, size_t len)
+bool str_resize(struct he_allocator* alloc,struct he_str* str, size_t len)
 {
-    str->buf = (char*)realloc(str->buf, len + 1);
+    str->buf = (char*)he_alloc_realloc(alloc,str->buf, len + 1);
     if (str->buf == NULL)
         return false;
 
@@ -141,28 +141,23 @@ bool str_resize(struct he_str* str, size_t len)
     return true;
 }
 
-bool str_set_len(struct he_str* str, size_t len)
-{
-    if (len > str->alloc)
-    {
-        size_t reqSize = len + 1;
-        if (reqSize < QSTR_MAX_PREALLOC)
-        {
-            reqSize *= 2;
-        }
-        else
-        {
-            reqSize += QSTR_MAX_PREALLOC;
-        }
-        str->buf = (char*)he_alloc_realloc(str->allocator, str->buf, reqSize);
-        //str->buf = (char*)realloc(str->buf, reqSize);
-        if (str->buf == NULL)
-            return false;
-        str->alloc = reqSize;
+bool str_set_len(struct he_allocator *alloc, struct he_str *str, size_t len) {
+  if (len > str->alloc) {
+    size_t reqSize = len + 1;
+    if (reqSize < QSTR_MAX_PREALLOC) {
+      reqSize *= 2;
+    } else {
+      reqSize += QSTR_MAX_PREALLOC;
     }
-    if(str->buf)
-        str->len = len;
-    return true;
+    str->buf = (char *)he_alloc_realloc(alloc, str->buf, reqSize);
+    // str->buf = (char*)realloc(str->buf, reqSize);
+    if (str->buf == NULL)
+      return false;
+    str->alloc = reqSize;
+  }
+  if (str->buf)
+    str->len = len;
+  return true;
 }
 
 bool str_update_len(struct he_str* str)
@@ -174,9 +169,9 @@ bool str_update_len(struct he_str* str)
     return true;
 }
 
-bool str_clear(struct he_str* str)
+bool str_clear(struct he_allocator* alloc,struct he_str* str)
 {
-    if (!str_set_len(str, 0))
+    if (!str_set_len(alloc,str, 0))
         return false;
     if(str->buf != NULL) {
         str->buf[0] = '\0';
@@ -340,7 +335,7 @@ int str_fmt_ull_comma_seperated(struct he_str_span slice, unsigned long long val
     return res + comma_count;
 }
 
-bool str_cat_fmt(struct he_str* s, char const* fmt, ...)
+bool str_cat_fmt(struct he_allocator* alloc,struct he_str* s, char const* fmt, ...)
 {
     const char* f = fmt;
     va_list     ap;
@@ -348,7 +343,7 @@ bool str_cat_fmt(struct he_str* s, char const* fmt, ...)
     /* To avoid continuous reallocations, let's start with a buffer that
      * can hold at least two times the format string itself. It's not the
      * best heuristic but seems to work in practice. */
-    if (!str_make_room_for(s, strlen(fmt) * 2))
+    if (!str_make_room_for(alloc,s, strlen(fmt) * 2))
         return false; // we failed to make room for
     va_start(ap, fmt);
     f = fmt; /* Next format specifier byte to process. */
@@ -360,8 +355,8 @@ bool str_cat_fmt(struct he_str* s, char const* fmt, ...)
         /* Make sure there is always space for at least 1 char. */
         if (str_avil_len(*s) == 0)
         {
-            if (!str_make_room_for(s, 1))
-                return false;
+          if (!str_make_room_for(alloc, s, 1))
+            return false;
         }
         assert(s->len <= s->alloc);
 
@@ -381,7 +376,7 @@ bool str_cat_fmt(struct he_str* s, char const* fmt, ...)
             case 's': {
                 char *str = va_arg( ap, char * );
                 const size_t len = strlen( str );
-                if( !str_make_room_for( s, len ) )
+                if( !str_make_room_for(alloc, s, len ) )
                     return false;
                 memcpy( s->buf + s->len, str, len );
                 s->len += len;
@@ -390,7 +385,7 @@ bool str_cat_fmt(struct he_str* s, char const* fmt, ...)
             case 'S':
             {
                 const struct he_str_span str = va_arg(ap, struct he_str_span);
-                if (!str_make_room_for(s, str.len))
+                if (!str_make_room_for(alloc,s, str.len))
                     return false;
                 memcpy(s->buf + s->len, str.buf, str.len);
                 s->len += str.len;
@@ -402,19 +397,19 @@ bool str_cat_fmt(struct he_str* s, char const* fmt, ...)
                 if (next == 'i')
                 {
                     num = va_arg(ap, int);
-                    if (!str_make_room_for(s, STR_LSTR_SIZE))
+                    if (!str_make_room_for(alloc,s, STR_LSTR_SIZE))
                         return false;
                 }
                 else if (next == 'l')
                 {
                     num = va_arg(ap, long);
-                    if (!str_make_room_for(s, STR_LSTR_SIZE))
+                    if (!str_make_room_for(alloc,s, STR_LSTR_SIZE))
                         return false;
                 }
                 else
                 {
                     num = va_arg(ap, long long);
-                    if (!str_make_room_for(s, STR_LSTR_SIZE))
+                    if (!str_make_room_for(alloc,s, STR_LSTR_SIZE))
                         return false;
                 }
                 const int len = str_fmt_ll(str_avil_span(*s), num);
@@ -432,19 +427,19 @@ bool str_cat_fmt(struct he_str* s, char const* fmt, ...)
                 if (next == 'u')
                 {
                     unum = va_arg(ap, unsigned int);
-                    if (!str_make_room_for(s, STR_LSTR_SIZE))
+                    if (!str_make_room_for(alloc,s, STR_LSTR_SIZE))
                         return false;
                 }
                 else if (next == 'L')
                 {
                     unum = va_arg(ap, unsigned long);
-                    if (!str_make_room_for(s, STR_LSTR_SIZE))
+                    if (!str_make_room_for(alloc,s, STR_LSTR_SIZE))
                         return false;
                 }
                 else
                 {
                     unum = va_arg(ap, unsigned long long);
-                    if (!str_make_room_for(s, STR_LSTR_SIZE))
+                    if (!str_make_room_for(alloc,s, STR_LSTR_SIZE))
                         return false;
                 }
                 const int len = str_fmt_ull(str_avil_span(*s), unum);
@@ -467,7 +462,7 @@ bool str_cat_fmt(struct he_str* s, char const* fmt, ...)
     }
     va_end(ap);
 
-    if (!str_make_room_for(s, 1))
+    if (!str_make_room_for(alloc,s, 1))
         return false;
     /* Add null-term */
     s->buf[s->len] = '\0';
@@ -517,7 +512,7 @@ static inline size_t read_number_base(const char* buf, size_t pos, size_t len, i
 bool str_read_ull(struct he_str_span slice, unsigned long long* result)
 {
     assert(result);
-    if (qStrEmpty(slice))
+    if (str_empty(slice))
         return false;
 
     size_t pos = 0;
@@ -541,7 +536,7 @@ bool str_read_ull(struct he_str_span slice, unsigned long long* result)
 bool str_read_ll(struct he_str_span slice, long long* result)
 {
     assert(result);
-    if (qStrEmpty(slice))
+    if (str_empty(slice))
         return false;
 
     size_t pos = 0;
@@ -568,7 +563,7 @@ bool str_read_ll(struct he_str_span slice, long long* result)
 
 bool str_read_float(struct he_str_span slice, float* result) {
     assert(result);
-    if (qStrEmpty(slice))
+    if (str_empty(slice))
         return false;
     size_t pos = 0;
     int    sign = 1;
@@ -604,7 +599,7 @@ bool str_read_float(struct he_str_span slice, float* result) {
 }
 bool str_read_double(struct he_str_span slice, double* result) {
     assert(result);
-    if (qStrEmpty(slice))
+    if (str_empty(slice))
         return false;
     size_t pos = 0;
     int    sign = 1;
@@ -714,17 +709,17 @@ bool str_cat_vprintf(struct he_allocator* alloc,struct he_str* str, const char* 
     }
 
     /* Finally concat the obtained string to the bstr string and return it. */
-    str_append_slice(str, (struct he_str_span){ buf, (size_t)bufstrlen });
+    str_append_slice(alloc, str, (struct he_str_span){buf, (size_t)bufstrlen});
     if (buf != staticbuf)
         he_free(buf);
     return true;
 }
 
-bool str_cat_printf(struct he_str* s, const char* fmt, ...)
+bool str_cat_printf(struct he_allocator* alloc,struct he_str* s, const char* fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    const bool result = str_cat_vprintf(s, fmt, ap);
+    const bool result = str_cat_vprintf(alloc,s, fmt, ap);
     va_end(ap);
     return result;
 }
@@ -744,13 +739,13 @@ bool str_insert_slice(struct he_allocator* alloc,struct he_str* str, size_t offs
     return true;
 }
 
-bool str_append_char(struct he_str* str, char b) {
-    return str_append_slice(str, (struct he_str_span){ &b,  1 }); 
+bool str_append_char(struct he_allocator *alloc, struct he_str *str, char b) {
+  return str_append_slice(alloc, str, (struct he_str_span){&b, 1});
 }
 
-bool str_insert_char(struct he_allocator* alloc,struct he_str* str, size_t i, char b)
-{
-    return str_insert_slice(alloc,str, i, (struct he_str_span){ &b,  1 });
+bool str_insert_char(struct he_allocator *alloc, struct he_str *str, size_t i,
+                     char b) {
+  return str_insert_slice(alloc, str, i, (struct he_str_span){&b, 1});
 }
 
 bool str_make_room_for(struct he_allocator* alloc,struct he_str* str, size_t addlen)
@@ -769,7 +764,6 @@ bool str_make_room_for(struct he_allocator* alloc,struct he_str* str, size_t add
         reqSize += QSTR_MAX_PREALLOC;
     }
     str->buf = (char*)he_alloc_realloc(alloc, str->buf, reqSize);
-    //str->buf = (char*)realloc(str->buf, reqSize);
     if (!str->buf)
         return false;
     str->alloc = reqSize;
@@ -778,8 +772,8 @@ bool str_make_room_for(struct he_allocator* alloc,struct he_str* str, size_t add
 
 struct he_str_span str_split_iter(struct str_split_iterable* iterable)
 {
-    assert(!qStrEmpty(iterable->buffer));
-    assert(!qStrEmpty(iterable->delim));
+    assert(!str_empty(iterable->buffer));
+    assert(!str_empty(iterable->delim));
     if (iterable->cursor == iterable->buffer.len)
         return (struct he_str_span){ 0 };
 
@@ -797,8 +791,8 @@ struct he_str_span str_split_iter(struct str_split_iterable* iterable)
 
 struct he_str_span str_split_rev_iter(struct str_split_iterable* iterable)
 {
-    assert(!qStrEmpty(iterable->buffer));
-    assert(!qStrEmpty(iterable->delim));
+    assert(!str_empty(iterable->buffer));
+    assert(!str_empty(iterable->delim));
     if (iterable->cursor == 0)
         return (struct he_str_span) { 0 };
 
@@ -815,7 +809,7 @@ struct he_str_span str_split_rev_iter(struct str_split_iterable* iterable)
     return res;
 }
 
-int qStrCaselessCompare(const struct he_str_span b0, const struct he_str_span b1)
+int str_caseless_compare(const struct he_str_span b0, const struct he_str_span b1)
 {
     size_t i0 = 0;
     size_t i1 = 0;
@@ -839,7 +833,7 @@ same_str:
     return 0;
 }
 
-int qStrCompare(const struct he_str_span b0, const struct he_str_span b1)
+int str_compare(const struct he_str_span b0, const struct he_str_span b1)
 {
     size_t i0 = 0;
     size_t i1 = 0;
@@ -1055,7 +1049,7 @@ int str_index_of_any(const struct he_str_span haystack, const struct he_str_span
     return false;
 }
 
-bool str_cat_join(struct he_str* str, struct he_str_span* slices, size_t numSlices, struct he_str_span sep)
+bool str_cat_join(struct he_allocator* alloc,struct he_str* str, struct he_str_span* slices, size_t numSlices, struct he_str_span sep)
 {
     {
         assert(str);
@@ -1070,8 +1064,8 @@ bool str_cat_join(struct he_str* str, struct he_str_span* slices, size_t numSlic
             reserveLen += slices[i].len;
             reserveLen += sep.len;
         }
-        if (!str_make_room_for(str, reserveLen))
-            return false;
+        if (!str_make_room_for(alloc, str, reserveLen))
+          return false;
     }
     for (size_t i = 0; i < numSlices; i++)
     {
@@ -1089,39 +1083,34 @@ bool str_cat_join(struct he_str* str, struct he_str_span* slices, size_t numSlic
     return true;
 }
 
-bool str_cat_join_c(struct he_str* str, const char** argv, size_t argc, struct he_str_span sep)
-{
-    for (size_t i = 0; i < argc; i++)
-    {
-        const size_t argLen = strlen(argv[i]);
-        if (!str_make_room_for(str, argLen + sep.len + 1))
-            return false;
-        memcpy(str->buf + str->len, argv[i], argLen);
-        str->len += argLen;
-        if (argc > 1 && i < argc - 1 && sep.len >= 1)
-        {
-            memcpy(str->buf + str->len, sep.buf, sep.len);
-            str->len += sep.len;
-        }
+bool str_cat_join_c(struct he_allocator *alloc, struct he_str *str,
+                    const char **argv, size_t argc, struct he_str_span sep) {
+  for (size_t i = 0; i < argc; i++) {
+    const size_t argLen = strlen(argv[i]);
+    if (!str_make_room_for(alloc, str, argLen + sep.len + 1))
+      return false;
+    memcpy(str->buf + str->len, argv[i], argLen);
+    str->len += argLen;
+    if (argc > 1 && i < argc - 1 && sep.len >= 1) {
+      memcpy(str->buf + str->len, sep.buf, sep.len);
+      str->len += sep.len;
     }
-    str->buf[str->len] = '\0';
-    assert(str->len <= str->alloc); // we've overrun the buffer
-    return true;
+  }
+  str->buf[str->len] = '\0';
+  assert(str->len <= str->alloc); // we've overrun the buffer
+  return true;
 }
 
-int str_last_index_of_any(const struct he_str_span haystack, const struct he_str_span characters)
-{
-    for (size_t i = haystack.len;; i--)
-    {
-        for (size_t j = 0; characters.len; j++)
-        {
-            if (haystack.buf[i] == characters.buf[j])
-            {
-                return i;
-            }
-        }
+int str_last_index_of_any(const struct he_str_span haystack,
+                          const struct he_str_span characters) {
+  for (size_t i = haystack.len + 1;i > 0; i--) {
+    for (size_t j = 0; characters.len; j++) {
+      if (haystack.buf[i - 1] == characters.buf[j]) {
+        return i;
+      }
     }
-    return false;
+  }
+  return false;
 }
 
 // minimum length is 7 + precision

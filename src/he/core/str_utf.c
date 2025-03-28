@@ -2,7 +2,7 @@
 #include "he/core/types.h"
 #include "he/core/str.h"
 
-struct he_str_span qStrUtf8CodePointIter(struct HeStrUTFIterable_s* iter){
+struct he_str_span qStrUtf8CodePointIter(struct he_str_utf_iterable* iter){
   assert(iter);
   const size_t startCursor = iter->cursor;
   if(startCursor >= iter->buffer.len)
@@ -37,7 +37,7 @@ struct he_str_span qStrUtf8CodePointIter(struct HeStrUTFIterable_s* iter){
   return sub_str_span(iter->buffer, startCursor, iter->cursor);
 }
 
-struct he_str_span bstrUtf16CodePointIter( struct HeStrUTFIterable_s *iter )
+struct he_str_span bstrUtf16CodePointIter( struct he_str_utf_iterable *iter )
 {
 	assert( iter );
 	const size_t startCursor = iter->cursor;
@@ -51,10 +51,10 @@ struct he_str_span bstrUtf16CodePointIter( struct HeStrUTFIterable_s *iter )
 	return sub_str_span( iter->buffer, startCursor, iter->cursor + 4 );
 }
 
-struct HeStrUtfResult_s HeStrUtf8NextCodePoint(struct HeStrUTFIterable_s* iter) {
+struct he_str_utf_result str_utf8_next_code_point(struct he_str_utf_iterable* iter) {
   assert(iter);
-  if(qStrEmpty(iter->buffer)) 
-    return (struct HeStrUtfResult_s) {
+  if(str_empty(iter->buffer)) 
+    return (struct he_str_utf_result) {
       .codePoint = 0,
       .finished = true,
       .invalid = true
@@ -66,7 +66,7 @@ struct HeStrUtfResult_s HeStrUtf8NextCodePoint(struct HeStrUTFIterable_s* iter) 
   if (c0 < 0xC0 || c0 > 0xFD) {
   	iter->cursor += 1;
   	if (c0 >= 0x80) goto invalid_token_overflow; 
-  	return (struct HeStrUtfResult_s) {
+  	return (struct he_str_utf_result) {
   	  .codePoint = c0,
   	  .finished = remainingLen == 1,
   	  .invalid = false
@@ -77,7 +77,7 @@ struct HeStrUtfResult_s HeStrUtf8NextCodePoint(struct HeStrUTFIterable_s* iter) 
   	iter->cursor += 2;
   	const uint32_t codePoint = ((c0 << 6u) - (0x0C0 << 6u)) + c1;
   	if (c1 >= 0x40 || codePoint < 0x80) goto invalid_token;
-    return (struct HeStrUtfResult_s) {
+    return (struct he_str_utf_result) {
 		  .codePoint = codePoint,
 		  .finished = remainingLen == 2,
 		  .invalid = false 
@@ -89,7 +89,7 @@ struct HeStrUtfResult_s HeStrUtf8NextCodePoint(struct HeStrUTFIterable_s* iter) 
   	const uint32_t codePoint = ((c0 << 12) - (0x0E0 << 12u)) + (c1 << 6u) + c2;
   	iter->cursor += 3;
   	if ((c1|c2) >= 0x40 || codePoint < 0x80 || !HE_IS_LEGAL_UNICODE_POINT (codePoint)) goto invalid_token;
-    return (struct HeStrUtfResult_s) {
+    return (struct he_str_utf_result) {
 		  .codePoint = codePoint,
 		  .finished = remainingLen == 3,
 		  .invalid = false
@@ -102,7 +102,7 @@ struct HeStrUtfResult_s HeStrUtf8NextCodePoint(struct HeStrUTFIterable_s* iter) 
   	iter->cursor += 4;
     const uint32_t codePoint = ((c0 << 18) - (0x0F0 << 18u)) + (c1 << 12u) + (c2 << 6u) + c3; 
   	if ((c1|c2|c3) >= 0x40 || codePoint < 0x10000 || !HE_IS_LEGAL_UNICODE_POINT  (codePoint)) goto invalid_token;
-    return (struct HeStrUtfResult_s) {
+    return (struct he_str_utf_result) {
 		  .codePoint = codePoint,
 		  .finished = remainingLen == 4,
 		  .invalid = false
@@ -111,7 +111,7 @@ struct HeStrUtfResult_s HeStrUtf8NextCodePoint(struct HeStrUTFIterable_s* iter) 
 invalid_token_overflow:
   iter->cursor = iter->buffer.len; 
 invalid_token:
-    return (struct HeStrUtfResult_s) {
+    return (struct he_str_utf_result) {
 		  .codePoint = 0,
 		  .finished = remainingLen == 0,
 		  .invalid = true
@@ -119,10 +119,10 @@ invalid_token:
 
 }
 
-struct HeStrUtfResult_s HeStrUtf16NextCodePoint(struct HeStrUTFIterable_s* iter) {
+struct he_str_utf_result str_utf16_next_code_point(struct he_str_utf_iterable* iter) {
   assert(iter);
-  if(qStrEmpty(iter->buffer)) 
-    return (struct HeStrUtfResult_s) {
+  if(str_empty(iter->buffer)) 
+    return (struct he_str_utf_result) {
       .codePoint = 0,
       .finished = true,
       .invalid = true
@@ -132,7 +132,7 @@ struct HeStrUtfResult_s HeStrUtf16NextCodePoint(struct HeStrUTFIterable_s* iter)
   const uint16_t w1 = ((unsigned)iter->buffer.buf[iter->cursor + 1] << 8) | (unsigned)iter->buffer.buf[iter->cursor];
   iter->cursor += 2;
   if (w1 < 0xD800 || w1 > 0xDFFF)
-    return (struct HeStrUtfResult_s) {
+    return (struct he_str_utf_result) {
       .codePoint = w1,
       .invalid = false,
       .finished = remainingLen == 2
@@ -141,7 +141,7 @@ struct HeStrUtfResult_s HeStrUtf16NextCodePoint(struct HeStrUTFIterable_s* iter)
   const uint16_t w2 = ((unsigned)iter->buffer.buf[iter->cursor + 1] << 8) | (unsigned)iter->buffer.buf[iter->cursor];
   iter->cursor += 2;
   if (w2 < 0xDC00 || w2 > 0xDFFF) goto invalid_token; 
-  return (struct HeStrUtfResult_s) {
+  return (struct he_str_utf_result) {
 		.codePoint = (((w1 & 0x3FF) << 10) | (w2 & 0x3FF)) + 0x10000,
 		.finished = remainingLen == 4,
 		.invalid = true
@@ -151,7 +151,7 @@ struct HeStrUtfResult_s HeStrUtf16NextCodePoint(struct HeStrUTFIterable_s* iter)
 invalid_token_overflow:
   iter->cursor = iter->buffer.len; 
 invalid_token:
-    return (struct HeStrUtfResult_s) {
+    return (struct he_str_utf_result) {
 		  .codePoint = 0,
 		  .finished = iter->cursor == iter->buffer.len,
 		  .invalid = true

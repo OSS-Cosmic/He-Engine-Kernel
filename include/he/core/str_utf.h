@@ -11,13 +11,12 @@
 
 #define HE_IS_LEGAL_UNICODE_POINT(v)  ((((v) < 0xD800L) || ((v) > 0xDFFFL)) && (((unsigned long)(v)) <= 0x0010FFFFL) && (((v)|0x1F0001) != 0x1FFFFFL))
 
-struct HeStrUTFIterable_s {
+struct he_str_utf_iterable {
   const struct he_str_span buffer; // the buffer to iterrate over
   size_t cursor;
 };
 
-
-struct HeStrUtfResult_s {
+struct he_str_utf_result {
   uint32_t codePoint;
   uint8_t invalid: 1;
   uint8_t finished: 1; // marks the final character in the sequence
@@ -27,10 +26,10 @@ struct HeStrUtfResult_s {
 extern "C" {
 #endif
 
-struct HeStrUtfResult_s HeStrUtf8NextCodePoint(struct HeStrUTFIterable_s* iter); 
+struct he_str_utf_result str_utf8_next_code_point(struct he_str_utf_iterable* iter); 
 
 // https://datatracker.ietf.org/doc/html/rfc2781
-struct HeStrUtfResult_s HeStrUtf16NextCodePoint(struct HeStrUTFIterable_s* iter);
+struct he_str_utf_result str_utf16_next_code_point(struct he_str_utf_iterable* iter);
 #ifdef __cplusplus
 }
 #endif

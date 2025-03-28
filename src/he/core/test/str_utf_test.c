@@ -1,56 +1,58 @@
 
-#include "../qstr_utf.h"
+#include "he/core/str_utf.h"
+#include "he/core/alloc.h"
+#include "he/core/log.h"
 #include "utest.h"
 
 
 UTEST(qstr_utf, qstrSliceToUtf16CodePoint) {
   unsigned char leftPointingMagnify[] = {0x3D,0xD8,0x0D,0xDD};
-  struct qStrUtfResult_s res;
+  struct he_str_utf_result res;
   {
-    struct qStrUTFIterable_s iter = {
-      .buffer = (struct StrSpan) {
+    struct he_str_utf_iterable iter = {
+      .buffer = (struct he_str_span) {
         .buf = (char*)leftPointingMagnify,
         .len = 2,
       },
       .cursor = 0
     };
-    res = qStrUtf16NextCodePoint(&iter);
+    res = str_utf16_next_code_point(&iter);
     EXPECT_EQ((bool)res.invalid, true);
     EXPECT_EQ((bool)res.finished, true);
   }
   {
-    struct qStrUTFIterable_s  iter = {
-      .buffer = (struct StrSpan) {
+    struct he_str_utf_iterable iter = {
+      .buffer = (struct he_str_span) {
         .buf = (char*)leftPointingMagnify,
         .len = sizeof(leftPointingMagnify),
       },
       .cursor = 0
     };
-    res = qStrUtf16NextCodePoint(&iter);
+    res = str_utf16_next_code_point(&iter);
     EXPECT_EQ(res.codePoint, 0x1F50D);
     EXPECT_EQ((bool)res.finished, true);
   }
   {
-    struct qStrUTFIterable_s  iter = {
-      .buffer = (struct StrSpan) {
+    struct he_str_utf_iterable iter = {
+      .buffer = (struct he_str_span) {
         .buf = NULL, 
         .len = 0,
       },
       .cursor = 0
     };
-    res = qStrUtf16NextCodePoint(&iter);
+    res = str_utf16_next_code_point(&iter);
     EXPECT_EQ((bool)res.invalid, true);
     EXPECT_EQ((bool)res.finished, true);
   }
   {
     char badInput[] = {0};
-    struct qStrUTFIterable_s iter = {
-        .buffer = (struct StrSpan){
+    struct he_str_utf_iterable iter = {
+        .buffer = (struct he_str_span){
           .buf = badInput,
           .len = 0, 
         },
         .cursor = 0};
-    res = qStrUtf16NextCodePoint(&iter);
+    res = str_utf16_next_code_point(&iter);
     EXPECT_EQ((bool)res.invalid, true);
     EXPECT_EQ((bool)res.finished, true);
   }
@@ -93,14 +95,14 @@ UTEST(qstr_utf, qstrSliceToUtf16CodePoint) {
 UTEST(qstr_utf, qstrUtf8CodePointIter) {
   {
     unsigned char smilyCat[] = {0xF0, 0x9F, 0x98, 0xBC};
-    struct qStrUTFIterable_s  iter = {
-      .buffer = (struct StrSpan) {
+    struct he_str_utf_iterable iter = {
+      .buffer = (struct he_str_span) {
         .buf = (char*)smilyCat,
         .len = sizeof(smilyCat),
       },
       .cursor = 0
     };
-    struct qStrUtfResult_s res = qStrUtf8NextCodePoint(&iter);
+    struct he_str_utf_result res = str_utf8_next_code_point(&iter);
     EXPECT_EQ(res.codePoint, 0x0001f63c);
     EXPECT_EQ((bool)res.finished, true);
     EXPECT_EQ((bool)res.invalid, false);
@@ -108,38 +110,46 @@ UTEST(qstr_utf, qstrUtf8CodePointIter) {
 {
   // Ḽơᶉëᶆ
   unsigned char buffer[] = {0xE1, 0xB8, 0xBC, 0xC6, 0xA1, 0xE1, 0xB6, 0x89,0xC3, 0xAB,0xE1, 0xB6,0x86 };
-  struct qStrUTFIterable_s  iterable = {
+  struct he_str_utf_iterable iterable = {
     .buffer = {
       .buf = (const char*)buffer,
       .len = sizeof(buffer)
     },
     .cursor = 0,
   };
-  struct qStrUtfResult_s s = {0};
-  s = qStrUtf8NextCodePoint(&iterable);
+  struct he_str_utf_result s = {0};
+  s = str_utf8_next_code_point(&iterable);
   EXPECT_EQ(s.codePoint, 0x00001E3C); // 0xE1, 0xB8, 0xBC
   EXPECT_EQ((bool)s.finished, false);
   EXPECT_EQ((bool)s.invalid, false);
-  s = qStrUtf8NextCodePoint(&iterable);
+  s = str_utf8_next_code_point(&iterable);
   EXPECT_EQ(s.codePoint,0x1a1); // 0xBC, 0xC6
   EXPECT_EQ((bool)s.finished, false);
   EXPECT_EQ((bool)s.invalid, false);
-  s = qStrUtf8NextCodePoint(&iterable);
+  s = str_utf8_next_code_point(&iterable);
   EXPECT_EQ(s.codePoint,0x1D89); // 0xE1, 0xB6, 0x89
   EXPECT_EQ((bool)s.finished, false);
   EXPECT_EQ((bool)s.invalid, false);
-  s = qStrUtf8NextCodePoint(&iterable);
+  s = str_utf8_next_code_point(&iterable);
   EXPECT_EQ(s.codePoint,0x00EB); // 0xC3 0xAB
   EXPECT_EQ((bool)s.finished, false);
   EXPECT_EQ((bool)s.invalid, false);
-  s = qStrUtf8NextCodePoint(&iterable);
+  s = str_utf8_next_code_point(&iterable);
   EXPECT_EQ(s.codePoint,0x1D86); //0xE1 0xB6 0x86
   EXPECT_EQ((bool)s.finished, true);
   EXPECT_EQ((bool)s.invalid, false);
-  s = qStrUtf8NextCodePoint(&iterable);
+  s = str_utf8_next_code_point(&iterable);
   EXPECT_EQ((bool)s.finished, true);
   EXPECT_EQ((bool)s.invalid, true);
   }
 }
 
-UTEST_MAIN();
+UTEST_STATE();
+int main(int argc, const char *const argv[]) {
+  he_init_alloc();
+  he_init_log("str_utf_test",eALL);
+  int res = utest_main(argc, argv);
+  he_exit_log();
+  he_exit_alloc();
+  return res;
+}

@@ -1,6 +1,11 @@
 
 #include "he/core/arch.h"
-#include "he/core/str.h"
+
+#ifndef _HE_ALLOC_H__
+#define _HE_ALLOC_H__
+
+#include "he/config.h"
+#include "he/core/log.h"
 
 struct he_file;
 
@@ -98,59 +103,50 @@ static void _system_free(void* user,void *ptr, const char *f, int l, const char 
   free(ptr);
 }
 
-static struct he_allocator system_allocator = {NULL,_system_malloc, 
+static struct he_allocator sys_alloc = {NULL,_system_malloc, 
                                               _system_calloc,
                                               _system_realloc, 
                                               _system_free};
-static struct he_allocator tracked_allocator = {NULL,
-    _internal_he_tracked_malloc, _internal_he_tracked_calloc,
-    _internal_he_tracked_realloc, _internal_he_tracked_free};
-
-
+static struct he_allocator dbg_alloc = {NULL,
+    _internal_he_tracked_malloc, 
+    _internal_he_tracked_calloc,
+    _internal_he_tracked_realloc, 
+    _internal_he_tracked_free};
 
 static inline void *__he_alloc_malloc(struct he_allocator *alloc, size_t size,
                                       const char *f, int l, const char *sf) {
-  if (alloc) {
-    alloc->malloc(alloc->user, size, f, l, sf);
-  }
-  return system_allocator.malloc(system_allocator.user, size, f, l, sf);
+  HE_ASSERT(alloc);
+  return alloc->malloc(alloc->user, size, f, l, sf);
 }
 static inline void *__he_alloc_calloc(struct he_allocator *alloc, size_t count, size_t size,
                                       const char *f, int l, const char *sf) {
-  if (alloc) {
-    alloc->calloc(alloc->user, count, size, f, l, sf);
-  }
-  return system_allocator.calloc(system_allocator.user, count, size, f, l, sf);
+  HE_ASSERT(alloc);
+  return alloc->calloc(alloc->user, count, size, f, l, sf);
 }
 
 static inline void *__he_alloc_realloc(struct he_allocator *alloc, void* ptr, size_t size,
                                       const char *f, int l, const char *sf) {
-  if (alloc) {
-    alloc->realloc(alloc->user, ptr, size, f, l, sf);
-  }
-  return system_allocator.realloc(system_allocator.user, ptr, size, f, l, sf);
+  HE_ASSERT(alloc);
+  return alloc->realloc(alloc->user, ptr, size, f, l, sf);
 }
 static inline void __he_alloc_free(struct he_allocator *alloc, void *ptr,
                                    const char *f, int l, const char *sf) {
-  if (alloc) {
-    alloc->free(alloc->user, ptr, f, l, sf);
-    return;
-  }
-  system_allocator.free(system_allocator.user, ptr, f, l, sf);
+  HE_ASSERT(alloc);
+  alloc->free(alloc->user, ptr, f, l, sf);
 }
 
 #ifdef HE_ALLOC_TRACKED
-#define DECLARE_DEFAULT_HE_ALLOCATOR tracked_allocator 
-#define he_malloc(size) he_alloc_malloc(&tracked_allocator, size)
-#define he_calloc(couint, size) he_alloc_calloc(&tracked_allocator, count, size)
-#define he_realloc(ptr, size) he_alloc_realloc(&tracked_allocator, ptr, size)
-#define he_free(ptr) he_alloc_free(&tracked_allocator, ptr)
+#define default_alloc dbg_alloc
+#define he_malloc(size) he_alloc_malloc(&dbg_alloc, size)
+#define he_calloc(couint, size) he_alloc_calloc(&dbg_alloc, count, size)
+#define he_realloc(ptr, size) he_alloc_realloc(&dbg_alloc, ptr, size)
+#define he_free(ptr) he_alloc_free(&dbg_alloc, ptr)
 #else
-#define DECLARE_DEFAULT_HE_ALLOCATOR system_allocator  
-#define he_malloc(size) he_alloc_malloc(&system_allocator, size)
-#define he_calloc(couint, size) he_alloc_calloc(&system_allocator, count, size)
-#define he_realloc(ptr, size) he_alloc_realloc(&system_allocator, ptr, size)
-#define he_free(ptr) he_alloc_free(&system_allocator, ptr)
+#define default_alloc sys_alloc
+#define he_malloc(size) he_alloc_malloc(&sys_alloc, size)
+#define he_calloc(couint, size) he_alloc_calloc(&sys_alloc, count, size)
+#define he_realloc(ptr, size) he_alloc_realloc(&sys_alloc, ptr, size)
+#define he_free(ptr) he_alloc_free(&sys_alloc, ptr)
 #endif
 
 #define he_alloc_malloc(allocator, size) __he_alloc_malloc((allocator),size, __FILE__, __LINE__, __FUNCTION__)
@@ -171,7 +167,6 @@ struct stack_allocator_user {
   void* alloc;
   size_t size;
 };
-
 
 static void *_stack_malloc(void *user, size_t size, const char *f, int l,
                            const char *sf) {
@@ -237,3 +232,6 @@ static inline struct he_allocator fixed_stack_allocator(struct stack_allocator_u
   };
   return alloc;
 }
+
+#endif
+

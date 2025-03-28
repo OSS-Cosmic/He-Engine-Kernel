@@ -18,7 +18,7 @@ struct he_mutex {
 struct he_mutex_desc {
   uint32_t spinCount;
 };
-static struct he_mutex_desc DefaultHeMutexDesc = {
+static struct he_mutex_desc default_mutex_desc = {
   .spinCount = HE_MUTEX_DEFAULT_SPIN_COUNT 
 };
 bool he_init_mutex(struct he_mutex_desc *desc, struct he_mutex *pMutex);

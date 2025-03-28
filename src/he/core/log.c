@@ -10,11 +10,6 @@
 
 #define HE_LOGGER_MAX_BUFFER 1024
 
-//#define MAX_THREAD_NAME_LENGTH 31
-//#define LOG_PREAMBLE_SIZE  (56 + MAX_THREAD_NAME_LENGTH + FILENAME_NAME_LENGTH_LOG)
-//#define LOG_LEVEL_SIZE     6
-//#define LOG_MESSAGE_OFFSET (LOG_PREAMBLE_SIZE + LOG_LEVEL_SIZE)
-
 struct log_callback {
   void *user_data;
   log_callback_fn callback;
@@ -33,7 +28,7 @@ struct {
 static THREAD_LOCAL struct {
   HE_STACK_ALLOCATOR_BASE
   uint8_t log_buffer[2048];
-} logger_buffer = {&DECLARE_DEFAULT_HE_ALLOCATOR};
+} logger_buffer = {&sys_alloc};
 
 static void __addInitialLogFile(const char* appName)
 {
@@ -57,7 +52,7 @@ static void __addInitialLogFile(const char* appName)
 
 
 void he_init_log(const char *appName, enum HeLogLevel_e level) {
-  he_init_mutex(&DefaultHeMutexDesc, &logger.mutex);
+  he_init_mutex(&default_mutex_desc, &logger.mutex);
   logger.log_level = level;
   logger.ready = true;
 }
@@ -93,10 +88,10 @@ static void defaultFlush(void* user_data)
 }
 
 
-void he_add_log_file(const char *filename, enum HeFileMode_e file_mode,
+void he_add_log_file(const char *filename, enum he_file_mode file_mode,
                   enum HeLogLevel_e log_level) {
   struct he_str log_path = {0};
-  str_cat_fmt(&log_path, "./%s.log", filename);
+  str_cat_fmt(&default_alloc, &log_path, "./%s.log", filename);
   struct he_file file;
   if (fs_open(log_path.buf, HE_FS_WRITE, &file)) {
     struct default_log_cb *cb = he_malloc(sizeof(struct default_log_cb));
@@ -104,9 +99,8 @@ void he_add_log_file(const char *filename, enum HeFileMode_e file_mode,
     he_add_log_callback(log_level, cb, defaultCallback, defaultClose,
                         defaultFlush);
   } else {
-    
   }
-  str_free(&log_path);
+  str_free(&default_alloc, &log_path);
 }
 
 void he_add_log_callback(uint32_t log_level, void *user_data,
@@ -126,6 +120,9 @@ void he_add_log_callback(uint32_t log_level, void *user_data,
 
 void he_write_log_va_list(uint32_t level, const char *filename, int line_number,
                         const char *message, va_list args) {
+  reset_stack_allocator(logger_buffer);
+  struct stack_allocator_user user = {&logger_buffer, sizeof(logger_buffer.log_buffer) };
+  struct he_allocator alloc = fixed_stack_allocator(&user);
    const size_t prefix_len = 6;
    struct {
      uint32_t first;
@@ -134,14 +131,12 @@ void he_write_log_va_list(uint32_t level, const char *filename, int line_number,
                    {eINFO, "INFO| "},
                    {eDEBUG, " DBG| "},
                    {eERROR, " ERR| "}};
-    
-    struct he_allocator alloc = create_inplace_stack_alloc(&log_allocator);
-    reset_stack_allocator(&alloc);
-    struct he_str log_buffer = {&alloc};
-    {
 
-      time_t t = time(NULL);
-      struct tm time_info;
+   struct he_str log_buffer = {};
+   {
+
+     time_t t = time(NULL);
+     struct tm time_info;
 #if defined(_WINDOWS) || defined(XBOX)
       localtime_s(&time_info, &t);
 #elif defined(ORBIS) || defined(PROSPERO)
@@ -152,17 +147,17 @@ void he_write_log_va_list(uint32_t level, const char *filename, int line_number,
 #else
       localtime_r(&t, &time_info);
 #endif
-      str_cat_printf(&log_buffer, "%04d-%02d-%02d %02d:%02d:%02d ",
+      str_cat_printf(&alloc,&log_buffer, "%04d-%02d-%02d %02d:%02d:%02d ",
           1900 + time_info.tm_year, 1 + time_info.tm_mon, time_info.tm_mday,
           time_info.tm_hour, time_info.tm_min, time_info.tm_sec); 
     }
 
     const size_t preable_offset = log_buffer.len; 
     for (size_t i = 0; i < prefix_len; i++)
-      str_append_char(&log_buffer, ' ');
+      str_append_char(&alloc,&log_buffer, ' ');
 
-    str_cat_vprintf(&log_buffer, message, args);
-    str_append_char(&log_buffer, '\n');
+    str_cat_vprintf(&alloc,&log_buffer, message, args);
+    str_append_char(&alloc,&log_buffer, '\n');
 
     // Log for each flag
     for (uint32_t i = 0; i < HE_ARRAY_COUNT(prefixes); ++i) {
@@ -181,7 +176,7 @@ void he_write_log_va_list(uint32_t level, const char *filename, int line_number,
       }
       he_release_mutex(&logger.mutex);
     }
-    str_free(&log_buffer);
+    str_free(&alloc,&log_buffer);
 }
 void he_write_log(uint32_t level, const char *filename, int line_number,
                 const char *message, ...) {
@@ -204,7 +199,9 @@ void he_write_raw_log(uint32_t level, bool error, const char *message, ...) {
   str_cat_vprintf(&alloc, &log_buffer, message, args);
   va_end(args);
   struct he_str_span log_span = str_to_str_span(log_buffer);
+  
   printf("%.*s", (int)log_span.len, log_span.buf);
+  
   he_acquire_mutex(&logger.mutex);
   for (size_t k = 0; k < arrlen(logger.cb); k++) {
     if ((logger.cb[k].level & level)) {

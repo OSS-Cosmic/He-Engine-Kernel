@@ -6,21 +6,21 @@ struct HeAllocScratchBlock {
 	size_t len;
 	void *data[];
 };
-static size_t __scratchDefaultBlockLen( struct HeScratchAllocator *alloc )
+static size_t __scratchDefaultBlockLen( struct he_scratch_allocator *alloc )
 {
 	return alloc->blockSize + alloc->alignment;
 }
 
-void heInitScratchAllocator( struct HeScratchAllocator *alloc, struct HeScratchAllocDesc *desc )
+void init_scratch_allocator( struct he_scratch_allocator *alloc, struct he_scrach_alloc_desc *desc )
 {
 	assert( alloc );
 	assert( desc );
-	memset( alloc, 0, sizeof( struct HeScratchAllocator ) );
+	memset( alloc, 0, sizeof( struct he_scratch_allocator ) );
 	alloc->blockSize = desc->blockSize;
 	alloc->alignment = HE_MAX( desc->alignment, sizeof( uint16_t ) );
 }
 
-void heResetScratchAllocator( struct HeScratchAllocator *alloc )
+void reset_scratch_allocator( struct he_scratch_allocator *alloc )
 {
 	alloc->freeBlocks = NULL;
 	struct HeAllocScratchBlock *blk = alloc->freeBlocks;
@@ -37,7 +37,7 @@ void heResetScratchAllocator( struct HeScratchAllocator *alloc )
 	alloc->pos = 0;
 }
 
-void heFreeScratchAllocator( struct HeScratchAllocator *alloc )
+void free_scratch_allocator( struct he_scratch_allocator *alloc )
 {
 	struct HeAllocScratchBlock *blk = alloc->freeBlocks;
 	while( blk ) {
@@ -49,7 +49,7 @@ void heFreeScratchAllocator( struct HeScratchAllocator *alloc )
 	alloc->current = NULL;
 }
 
-void *heScratchAlloc( struct HeScratchAllocator *alloc, size_t size )
+void *scratch_alloc( struct he_scratch_allocator *alloc, size_t size )
 {
 	const size_t reqSize = HE_ALIGN_TO( size, alloc->alignment );
 	if( reqSize > alloc->blockSize ) {

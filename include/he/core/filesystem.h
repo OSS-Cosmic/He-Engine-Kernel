@@ -1,11 +1,12 @@
-#ifndef HE_FILESYSTEM_H_INCLUDED
-#define HE_FILESYSTEM_H_INCLUDED
 
 #include "he/core/types.h"
 #include "he/config.h"
 #include "he/core/str.h"
 
-enum HeFileMode_e {
+#ifndef _HE_FILESYSTEM_H__
+#define _HE_FILESYSTEM_H__
+
+enum he_file_mode {
   // Get read access for file. Error if file not exist.
   HE_FS_READ = 1 << 0,
 
@@ -47,7 +48,7 @@ struct he_file {
 };
 
 bool fs_is_open(struct he_file* file);
-bool fs_open(const char *path, enum HeFileMode_e mode, struct he_file *pOut);
+bool fs_open(const char *path, enum he_file_mode mode, struct he_file *pOut);
 bool fs_close(struct he_file *file);
 ssize_t fs_seek_start_of_file(struct he_file *file, ssize_t offset);
 ssize_t fs_seek_cur_pos(struct he_file *file, ssize_t offset);

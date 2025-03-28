@@ -5,7 +5,7 @@
 #include "he/core/types.h"
 #include "he/core/alloc.h"
 
-struct HeScratchAllocator {
+struct he_scratch_allocator {
 	struct he_allocator* alloctor;
 	struct HeAllocScratchBlock *freeBlocks;
 	struct HeAllocScratchBlock *current;
@@ -14,7 +14,7 @@ struct HeScratchAllocator {
 	uint16_t alignment;
 };
 
-struct HeScratchAllocDesc {
+struct he_scrach_alloc_desc {
 	size_t blockSize;
 	size_t alignment;
 };
@@ -23,11 +23,11 @@ struct HeScratchAllocDesc {
 extern "C" {
 #endif
 
-void heInitScratchAllocator(struct HeScratchAllocator *alloc,
-                            struct HeScratchAllocDesc *desc);
-void heFreeScratchAllocator(struct HeScratchAllocator *alloc);
-void heResetScratchAllocator(struct HeScratchAllocator *alloc);
-void *heScratchAlloc(struct HeScratchAllocator *alloc, size_t size);
+void init_scratch_allocator(struct he_scratch_allocator *alloc,
+                            struct he_scrach_alloc_desc *desc);
+void free_scratch_allocator(struct he_scratch_allocator *alloc);
+void reset_scratch_allocator(struct he_scratch_allocator *alloc);
+void *scratch_alloc(struct he_scratch_allocator *alloc, size_t size);
 
 #ifdef __cplusplus
 }
